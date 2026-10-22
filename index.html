@@ -1,4 +1,9 @@
-<script>window.APP_CFG={mode:<?!= JSON.stringify(mode) ?>,url:<?!= JSON.stringify(url) ?>};</script>
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
 <title>學習扶助闖關地圖</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -352,6 +357,13 @@ details summary{cursor:pointer;color:var(--line-s);font-size:14px;font-weight:50
 @keyframes hop{0%{transform:translateY(0)}40%{transform:translateY(-14px)}100%{transform:translateY(0)}}
 .hop{animation:hop .45s ease-out}
 </style>
+<script>
+// 單機版：沒有後台，紀錄存在這台裝置的瀏覽器裡；QR code 指向這個網頁自己的網址
+window.APP_CFG={mode:'all',url:(location.protocol==='http:'||location.protocol==='https:')?location.origin+location.pathname:''};
+</script>
+</head>
+<body>
+
 
 <div class="wrap" id="app"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -398,7 +410,7 @@ let db=null, cloud=false, sessions=ls.get(LS_KEY,[]);
 const IS_GAS = !!(window.google && google.script && google.script.run);
 const CFG = window.APP_CFG || {mode:'all', url:''};
 // 學生入口（Google 掃碼版）網址：沒有從伺服器拿到時用這個
-const STUDENT_URL = CFG.url || 'https://script.google.com/macros/s/AKfycbys7z0lwGT3AFz7yL58SR-gQrXtqUTvpJL2FoAWLWABNC0ZfQkg3m-18xLPkQ9_DK58/exec';
+const STUDENT_URL = CFG.url;
 let teacherPin = null, saveFailed = false;
 if(IS_GAS){ cloud = true; sessions = []; }
 const STUDENTS=['方宥桐','李語甯','林芝樂','武南疼','陳乙菲','陳奕辰','楊振宇','劉力倫','鄭呈胤','羅侑宗'];
@@ -614,7 +626,7 @@ function renderLogin(){
     <span>${IS_GAS?'老師預覽模式：在這裡作答也會記進試算表。':cloud?'作答紀錄會存到雲端，換裝置打開也看得到。':'紀錄只存在這台裝置的瀏覽器裡。'}</span>
     <button class="btn ghost small" id="toReport">老師看結果</button>
   </footer>`}`;
-  if(window.QRCode&&$('#qrl')) new QRCode($('#qrl'),{text:STUDENT_URL,width:132,height:132,correctLevel:QRCode.CorrectLevel.M});
+  if(window.QRCode&&$('#qrl')&&STUDENT_URL) new QRCode($('#qrl'),{text:STUDENT_URL,width:132,height:132,correctLevel:QRCode.CorrectLevel.M});
   else if($('.login-qr')) $('.login-qr').hidden=true;
   document.querySelectorAll('[data-kid]').forEach(b=>b.addEventListener('click',()=>{student=b.dataset.kid;repStudent=student;view={name:'map'};render();loadStudent(student);window.scrollTo(0,0);}));
   $('#toReport')?.addEventListener('click',()=>{view={name:'report'};render();window.scrollTo(0,0)});
@@ -2446,3 +2458,6 @@ Object.keys(GAMES).forEach(id=>{ LEVELS[id].game=true; });
 render();
 })();
 </script>
+
+</body>
+</html>
