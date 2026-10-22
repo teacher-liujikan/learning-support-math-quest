@@ -1,0 +1,2448 @@
+<script>window.APP_CFG={mode:<?!= JSON.stringify(mode) ?>,url:<?!= JSON.stringify(url) ?>};</script>
+<title>學習扶助闖關地圖</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=LXGW+WenKai+TC:wght@400;700&family=Noto+Sans+TC:wght@400;500;700&display=swap">
+<style>
+/* Layout: a metro route map — three colored lines (number / relation / shape & measure), each indicator is a station; levels open as full-screen play cards */
+:root{
+  --bg:#EAF0F2; --surface:#FFFFFF; --surface-2:#F4F7F8; --ink:#17262F; --ink-2:#4F6470; --rule:#CCD8DD;
+  --line-n:#0B8577; --line-r:#D9822B; --line-s:#3A62C9;
+  --frog:#F4B400; --frog-ink:#5A4300;
+  --good:#23894E; --good-bg:#E2F3E8; --bad:#C2413A; --bad-bg:#FBE7E5; --warn:#9A6A00; --warn-bg:#FFF3D1;
+  --shadow:0 1px 2px rgba(23,38,47,.08),0 6px 18px rgba(23,38,47,.08);
+  --f-display:"LXGW WenKai TC","Noto Sans TC",system-ui,sans-serif;
+  --f-body:"Noto Sans TC",system-ui,-apple-system,"PingFang TC","Microsoft JhengHei",sans-serif;
+  --f-num:"Fredoka","Noto Sans TC",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10181D; --surface:#19242B; --surface-2:#1F2C34; --ink:#E4ECEF; --ink-2:#9DB0BA; --rule:#2E3E47;
+  --line-n:#2BB5A4; --line-r:#F0A04B; --line-s:#7194F0;
+  --frog:#F7C531; --frog-ink:#3A2B00;
+  --good:#5BC489; --good-bg:#16352A; --bad:#F07D74; --bad-bg:#3A1E1C; --warn:#F0C24B; --warn-bg:#3A3015;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10181D; --surface:#19242B; --surface-2:#1F2C34; --ink:#E4ECEF; --ink-2:#9DB0BA; --rule:#2E3E47;
+  --line-n:#2BB5A4; --line-r:#F0A04B; --line-s:#7194F0;
+  --frog:#F7C531; --frog-ink:#3A2B00;
+  --good:#5BC489; --good-bg:#16352A; --bad:#F07D74; --bad-bg:#3A1E1C; --warn:#F0C24B; --warn-bg:#3A3015;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 6px 18px rgba(0,0,0,.3); color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:16px;line-height:1.6;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;line-height:1.25}
+h1{font-size:clamp(28px,5vw,40px)}
+h2{font-size:24px}
+h3{font-size:19px}
+p{margin:0}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible{outline:3px solid var(--line-s);outline-offset:2px}
+.muted{color:var(--ink-2)}
+.eyebrow{font-size:13px;letter-spacing:.08em;color:var(--ink-2);font-weight:500}
+
+/* ---------- top bar ---------- */
+.top{display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end;justify-content:space-between}
+.who{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:6px 8px 6px 16px}
+.who label{font-size:14px;color:var(--ink-2)}
+.who input{width:96px;border:0;background:var(--surface-2);border-radius:999px;padding:6px 12px;font-family:var(--f-num);font-size:18px;color:var(--ink)}
+
+/* ---------- metro map ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:14px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:22px;height:6px;border-radius:3px;display:inline-block}
+.lines{display:grid;grid-template-columns:1fr;gap:20px;align-items:start}
+@media (min-width:640px){.lines{grid-template-columns:1fr 1fr;grid-template-areas:"n s" "r s"}.line.n{grid-area:n}.line.r{grid-area:r}.line.s{grid-area:s}}
+.line{--c:var(--line-n);background:var(--surface);border-radius:18px;padding:18px 16px 10px;box-shadow:var(--shadow);min-width:0}
+.line.r{--c:var(--line-r)} .line.s{--c:var(--line-s)}
+.line-head{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.line-badge{width:34px;height:34px;border-radius:50%;background:var(--c);color:#fff;font-family:var(--f-num);font-weight:700;font-size:18px;display:grid;place-items:center;flex:none}
+.stations{list-style:none;margin:0;padding:0;position:relative}
+.stations::before{content:"";position:absolute;left:16px;top:22px;bottom:22px;width:6px;border-radius:3px;background:var(--c)}
+.st{position:relative}
+.st button{width:100%;display:grid;grid-template-columns:38px 1fr;gap:10px;align-items:center;text-align:left;background:none;border:0;border-radius:12px;padding:10px 6px 10px 0}
+.st button:not([disabled]):hover{background:var(--surface-2)}
+.st button[disabled]{cursor:default}
+.dot{width:26px;height:26px;margin-left:6px;border-radius:50%;background:var(--surface);border:5px solid var(--c);position:relative;z-index:1}
+.st.done .dot{background:var(--c)}
+.st.open .dot{box-shadow:0 0 0 5px color-mix(in srgb,var(--c) 25%,transparent)}
+.st-name{font-weight:700;font-size:17px;display:block;line-height:1.35}
+.st-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:3px;font-size:13px;color:var(--ink-2)}
+.code{font-family:var(--f-num);letter-spacing:.02em}
+.pill{display:inline-block;font-size:12.5px;font-weight:500;border-radius:999px;padding:1px 9px;background:var(--surface-2);color:var(--ink-2)}
+.pill.go{background:var(--c);color:#fff}
+.pill.good{background:var(--good-bg);color:var(--good)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.bad{background:var(--bad-bg);color:var(--bad)}
+.foot{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;font-size:14px;color:var(--ink-2)}
+.btn{border:0;border-radius:14px;padding:12px 20px;font-weight:700;font-size:17px;background:var(--ink);color:var(--surface)}
+.btn.ghost{background:transparent;border:2px solid var(--rule);color:var(--ink)}
+.btn.small{padding:8px 14px;font-size:15px;border-radius:10px}
+.btn:disabled{opacity:.4;cursor:default}
+.note{font-size:13.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:8px 12px}
+
+/* ---------- login ---------- */
+.login-top{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:center;justify-content:space-between}
+.login-qr{margin:0;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--surface);border:3px solid var(--line-n);border-radius:16px;padding:10px 10px 8px}
+.login-qr #qrl{background:#fff;padding:6px;border-radius:8px;line-height:0}
+.login-qr #qrl img,.login-qr #qrl canvas{display:block;width:132px;height:132px}
+.login-qr figcaption{font-size:14px;font-weight:700;color:var(--ink)}
+.login-head{display:flex;flex-direction:column;gap:6px}
+.kids{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.kid{display:flex;align-items:center;gap:12px;background:var(--surface);border:2px solid transparent;border-radius:18px;padding:14px;box-shadow:var(--shadow);text-align:left}
+.kid:hover{border-color:var(--line-n)}
+.kid .av{width:46px;height:46px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-size:22px;flex:none}
+.kid .nm{font-family:var(--f-display);font-size:22px;font-weight:700;line-height:1.2}
+.kid .sub{font-size:13px;color:var(--ink-2)}
+.me{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--rule);border-radius:999px;padding:6px 6px 6px 8px}
+.me .av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-size:18px}
+.me .nm{font-family:var(--f-display);font-size:20px;font-weight:700}
+.overview td button{background:none;border:0;padding:0;color:var(--line-s);font-weight:700;font-size:15px;text-decoration:underline;text-underline-offset:3px}
+tr.sel td,tr.sel th{background:var(--surface-2)}
+.pg{min-width:0;font-size:13.5px}
+.pg th,.pg td{border-bottom:1px solid var(--rule);padding:6px 4px;text-align:center}
+.pg-name{position:sticky;left:0;background:var(--surface);text-align:left!important;white-space:nowrap;z-index:1;padding-left:2px!important}
+.pg-name button{background:none;border:0;padding:0;color:var(--line-s);font-weight:700;font-size:15px;text-decoration:underline;text-underline-offset:3px;font-family:var(--f-body)}
+tfoot .pg-name{font-size:13px;color:var(--ink-2);font-weight:500}
+.pg-sum{white-space:nowrap;min-width:84px}
+.pg-sum .num{font-weight:600;display:block}
+.bar{display:block;height:5px;border-radius:3px;background:var(--surface-2);overflow:hidden;margin-top:3px}
+.bar i{display:block;height:100%;background:var(--good)}
+.pg-h{min-width:64px;font-size:12.5px;line-height:1.3;color:var(--ink);font-weight:700;vertical-align:bottom;border-bottom:4px solid var(--line-n)!important}
+.pg-h.r{border-bottom-color:var(--line-r)!important}.pg-h.s{border-bottom-color:var(--line-s)!important}
+.pg-h .code{display:block;font-size:10.5px;color:var(--ink-2);font-weight:500}
+.pg-c{font-size:12.5px;font-weight:600;white-space:nowrap}
+td.pg-c{border-left:2px solid var(--surface)}
+.pg-c.good{background:var(--good-bg);color:var(--good)}
+.pg-c.warn{background:var(--warn-bg);color:var(--warn)}
+.pg-c.bad{background:var(--bad-bg);color:var(--bad)}
+.pg-c.new{background:color-mix(in srgb,var(--line-s) 14%,var(--surface));color:var(--line-s)}
+.pg-c.todo{background:var(--surface-2);color:var(--ink-2);font-weight:400}
+.pg-c.none{background:transparent}
+.pg-legend{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;font-size:13px;color:var(--ink-2)}
+.pg-legend .pg-c{display:inline-block;min-width:44px;text-align:center;border-radius:6px;padding:2px 6px;margin-left:6px;border:1px solid var(--rule)}
+
+/* ---------- teacher extras ---------- */
+.row-btns{display:flex;gap:8px;flex-wrap:wrap}
+.pin-form{max-width:360px;display:flex;flex-direction:column;gap:10px}
+.pin-form input{font-size:22px;padding:10px 14px;border-radius:12px;border:2px solid var(--rule);background:var(--surface-2);color:var(--ink);font-family:var(--f-num)}
+.rep.qr-card{flex-direction:row;flex-wrap:wrap;align-items:center;gap:18px}
+.qr{background:#fff;padding:10px;border-radius:12px;line-height:0}
+.qr img,.qr canvas{display:block}
+.qr-text{flex:1;min-width:220px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.url{font-family:var(--f-num);font-size:13px;word-break:break-all;color:var(--ink-2)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--bad);color:#fff;padding:10px 16px;border-radius:12px;font-size:15px;max-width:calc(100% - 32px);z-index:10}
+
+/* ---------- play screen ---------- */
+.play{background:var(--surface);border-radius:22px;box-shadow:var(--shadow);padding:18px 18px 22px;display:flex;flex-direction:column;gap:18px;min-height:540px}
+.play-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.track{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.leg{display:flex;gap:4px;align-items:center}
+.leg b{width:12px;height:12px;border-radius:50%;background:var(--rule)}
+.leg b.ok{background:var(--good)} .leg b.no{background:var(--bad)} .leg b.now{background:var(--frog);box-shadow:0 0 0 3px color-mix(in srgb,var(--frog) 35%,transparent)}
+.leg + .leg::before{content:"";width:14px;height:3px;background:var(--rule);border-radius:2px;margin-right:6px}
+.stage-title{display:flex;flex-direction:column;gap:2px}
+.prompt{font-size:20px;font-weight:500}
+.big-q{font-family:var(--f-num);font-size:clamp(44px,10vw,72px);font-weight:600;text-align:center;line-height:1.1;letter-spacing:.02em}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:12px}
+.choice{border:3px solid var(--rule);background:var(--surface-2);border-radius:18px;padding:16px 10px;font-family:var(--f-num);font-size:30px;font-weight:600;min-height:72px;transition:transform .08s}
+.choice.txt{font-family:var(--f-body);font-size:20px;font-weight:700}
+.choice:active{transform:scale(.97)}
+.choice.picked{border-color:var(--frog);background:color-mix(in srgb,var(--frog) 18%,var(--surface))}
+.choice.right{border-color:var(--good);background:var(--good-bg)}
+.choice.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.choice:disabled{cursor:default}
+.steps{display:flex;flex-direction:column;gap:14px}
+.step{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:12px 14px;border-radius:16px;background:var(--surface-2)}
+.step.dim{opacity:.45}
+.step .lhs{font-family:var(--f-num);font-size:30px;font-weight:600;min-width:120px}
+.step .choices{flex:1;min-width:220px}
+.step .choice{font-size:26px;min-height:60px;padding:10px}
+.timer{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden}
+.timer i{display:block;height:100%;width:100%;background:var(--frog);transform-origin:left;transition:transform linear}
+.feedback{border-radius:16px;padding:14px 16px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.feedback.ok{background:var(--good-bg)} .feedback.no{background:var(--warn-bg)}
+.feedback p{font-size:18px;flex:1;min-width:220px}
+.feedback strong{font-family:var(--f-display);font-size:21px;display:block}
+.nl-wrap{background:var(--surface-2);border-radius:18px;padding:8px 6px;touch-action:none}
+.nl-wrap svg{width:100%;height:auto;display:block}
+.nl-wrap text{font-family:var(--f-num);font-weight:600;fill:var(--ink)}
+.frog{cursor:grab}
+.frog:active{cursor:grabbing}
+.say{font-family:var(--f-display);font-size:22px}
+.detective{display:flex;gap:14px;align-items:center;background:var(--surface-2);border-radius:18px;padding:14px 16px}
+.detective .face{width:56px;height:56px;border-radius:50%;background:var(--line-r);color:#fff;display:grid;place-items:center;font-family:var(--f-display);font-size:24px;flex:none}
+.detective .eq{font-family:var(--f-num);font-size:clamp(28px,6vw,40px);font-weight:600}
+.center{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:20px 0}
+.stars{font-family:var(--f-num);font-size:44px;color:var(--frog);letter-spacing:6px}
+.intro-list{display:grid;gap:10px;text-align:left;max-width:520px;width:100%}
+.intro-list div{display:flex;gap:12px;align-items:flex-start;background:var(--surface-2);padding:10px 14px;border-radius:12px}
+.intro-list b{font-family:var(--f-num);color:var(--line-n);font-size:20px;line-height:1.4}
+
+
+[hidden]{display:none!important}
+/* ---------- shared game parts ---------- */
+:root{--bar-a:#BFE3DC;--bar-b:#FBD9B0;--bt-h:#9DB7F0;--bt-t:#F4A259;--bt-o:#FFFFFF}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bar-a:#1F5C54;--bar-b:#6B4A22;--bt-h:#3E5FA8;--bt-t:#B8682A;--bt-o:#DDE6EA}}
+:root[data-theme="dark"]{--bar-a:#1F5C54;--bar-b:#6B4A22;--bt-h:#3E5FA8;--bt-t:#B8682A;--bt-o:#DDE6EA}
+.big-inline{font-family:var(--f-num);font-size:32px;font-weight:600;padding:0 4px}
+.big-text{font-size:22px;line-height:1.7}
+.np{display:flex;flex-direction:column;gap:12px;align-items:flex-start}
+.np-slots{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.np-g{display:inline-flex;align-items:center;gap:6px}
+.np-t{font-size:22px;font-family:var(--f-display)}
+.np-slot{min-width:110px;height:64px;border-radius:14px;border:3px solid var(--rule);background:var(--surface);font-family:var(--f-num);font-size:34px;font-weight:600;padding:0 12px}
+.np-slot.sm{min-width:0;width:52px;height:58px;padding:0}
+.np-slot.act{border-color:var(--frog);box-shadow:0 0 0 4px color-mix(in srgb,var(--frog) 30%,transparent)}
+.np-keys{display:grid;grid-template-columns:repeat(6,minmax(48px,64px));gap:8px}
+@media (max-width:460px){.np-keys{grid-template-columns:repeat(3,minmax(64px,1fr));width:100%}}
+.np-k{height:54px;border-radius:12px;border:2px solid var(--rule);background:var(--surface-2);font-family:var(--f-num);font-size:24px;font-weight:600}
+.np-k.go{background:var(--ink);color:var(--surface);border-color:var(--ink);font-family:var(--f-body);font-size:18px}
+.np-k.del{font-size:20px}
+.np-k:disabled{opacity:.4;cursor:default}
+.bt{display:inline-block;flex:none}
+.bt.h{width:64px;height:64px;background-color:var(--bt-h);background-image:linear-gradient(var(--ink) 1px,transparent 1px),linear-gradient(90deg,var(--ink) 1px,transparent 1px);background-size:6.4px 6.4px;border:1.5px solid var(--ink);opacity:.95}
+.bt.t{width:9px;height:64px;background-color:var(--bt-t);background-image:linear-gradient(var(--ink) 1px,transparent 1px);background-size:9px 6.4px;border:1.5px solid var(--ink)}
+.bt.o{width:9px;height:9px;background:var(--bt-o);border:1.5px solid var(--ink)}
+.bt-pic{display:flex;flex-wrap:wrap;gap:18px;align-items:flex-end;background:var(--surface-2);border-radius:16px;padding:16px}
+.bt-grp{display:flex;flex-wrap:wrap;gap:5px;align-items:flex-end;max-width:100%}
+.bb{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;width:100%}
+.bb-col{background:var(--surface-2);border-radius:14px;padding:10px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.bb-name{font-weight:700;font-size:15px}
+.bb-area{min-height:150px;display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start;align-items:flex-end}
+.bb-area .bt.h{width:44px;height:44px;background-size:4.4px 4.4px}
+.bb-area .bt.t{height:44px;background-size:9px 4.4px}
+.bb-ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bb-b{width:52px;height:46px;border-radius:12px;border:2px solid var(--rule);background:var(--surface);font-size:26px;font-weight:700;line-height:1}
+@media (max-width:460px){.bb{grid-template-columns:1fr}.bb-area{min-height:60px}}
+.seq{display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center;font-family:var(--f-num);font-size:clamp(24px,5vw,32px);font-weight:600}
+.seq-n{background:var(--surface-2);border-radius:12px;padding:6px 12px}
+.seq-n.blank{border:3px dashed var(--frog);background:transparent;min-width:70px;text-align:center}
+.seq-arrow{color:var(--ink-2);font-size:20px}
+.pv{display:flex;gap:10px}
+.pv-col{display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--surface-2);border-radius:14px;padding:10px 12px}
+.pv-h{font-weight:700}
+.pv-s{font-family:var(--f-num);color:var(--ink-2)}
+.pv .np-slot{min-width:0;width:64px}
+.digits{display:grid;grid-template-columns:repeat(5,minmax(48px,64px));gap:8px}
+.dg{height:56px;border-radius:12px;border:3px solid var(--rule);background:var(--surface-2);font-family:var(--f-num);font-size:26px;font-weight:600}
+.dg.on{border-color:var(--frog);background:color-mix(in srgb,var(--frog) 22%,var(--surface))}
+.dg.right{border-color:var(--good);background:var(--good-bg)}
+.dg.wrong{border-color:var(--bad);background:var(--bad-bg)}
+.vc{display:inline-flex;flex-direction:column;gap:4px;background:var(--surface-2);border-radius:16px;padding:12px 18px;font-family:var(--f-num);font-size:34px;font-weight:600}
+.vc-row{display:grid;grid-template-columns:36px repeat(3,56px);align-items:center;justify-items:center}
+.vc-head{font-size:14px;color:var(--ink-2);font-family:var(--f-body);font-weight:500}
+.vc-line{height:3px;background:var(--ink);margin-left:36px}
+.vc-ans .vc-d{min-height:58px;display:grid;place-items:center}
+.vc-op{font-size:28px}
+.bar-wrap{background:var(--surface-2);border-radius:16px;padding:6px}
+.bar-wrap svg{width:100%;height:auto;display:block}
+.bar-wrap text{font-family:var(--f-num);font-weight:600;fill:var(--ink)}
+.eq-line{font-family:var(--f-num);font-size:26px;font-weight:600;text-align:center}
+.purse{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--surface-2);border-radius:16px;padding:14px}
+.bill{display:inline-flex;align-items:baseline;justify-content:center;gap:2px;width:96px;height:52px;border-radius:6px;border:2px solid rgba(0,0,0,.35);font-family:var(--f-num);color:#1a1a1a;padding-top:10px}
+.bill b{font-size:24px}.bill i{font-style:normal;font-size:13px}
+.bill.b1000{background:#A9C8F2}.bill.b500{background:#D9B48A}.bill.b100{background:#F1A7A0}
+.coin{display:inline-grid;place-items:center;border-radius:50%;border:2px solid rgba(0,0,0,.35);font-family:var(--f-num);font-weight:700;color:#1a1a1a}
+.coin.c50{width:58px;height:58px;background:#F2CF63;font-size:20px}
+.coin.c10{width:50px;height:50px;background:#E9C46A;font-size:18px}
+.coin.c5{width:44px;height:44px;background:#D7DCE0;font-size:17px}
+.coin.c1{width:36px;height:36px;background:#D8A47F;font-size:15px}
+.palette{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pal,.tray-p{background:none;border:0;padding:4px;border-radius:10px}
+.pal:hover,.tray-p:hover{background:var(--surface-2)}
+.tray{display:flex;flex-wrap:wrap;gap:6px;align-items:center;min-height:76px;border:3px dashed var(--rule);border-radius:16px;padding:10px;width:100%}
+.boxes{display:flex;flex-wrap:wrap;gap:10px;min-height:70px;align-items:center}
+.box{display:grid;grid-template-columns:repeat(5,14px);gap:4px;padding:8px;border:3px solid var(--line-r);border-radius:10px;background:var(--surface-2)}
+.box i{width:14px;height:14px;border-radius:50%;background:var(--line-n);display:block}
+.lv-tabs{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px}
+.lv-tab{flex:none;border:2px solid var(--rule);background:var(--surface);border-radius:12px;padding:6px 12px;font-weight:700;text-align:left;font-size:15px}
+.lv-tab .code{display:block;font-size:11px;color:var(--ink-2);font-weight:500}
+.lv-tab.on{border-color:var(--line-s);background:color-mix(in srgb,var(--line-s) 12%,var(--surface))}
+
+
+/* ---------- batch 1 parts ---------- */
+:root{--water:#8EC5F0;--fig:#FFE9B0}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--water:#2F6E9E;--fig:#5A4A1E}}
+:root[data-theme="dark"]{--water:#2F6E9E;--fig:#5A4A1E}
+.choices.col{grid-template-columns:1fr}
+.choice.story{font-size:17px;font-weight:500;text-align:left;line-height:1.6;padding:14px 16px}
+.clock-wrap{display:flex;justify-content:center}
+.clock{width:min(300px,80vw);height:auto;touch-action:none}
+.clock text{font-family:var(--f-num);font-weight:600;fill:var(--ink)}
+.hand-pick{display:flex;gap:8px;flex-wrap:wrap}
+.hp{border:3px solid var(--rule);background:var(--surface-2);border-radius:12px;padding:8px 14px;font-weight:700;font-size:16px}
+.hp.on{border-color:var(--frog);background:color-mix(in srgb,var(--frog) 20%,var(--surface))}
+.hp[data-h="mh"].on{border-color:var(--line-s)}
+.digi{font-family:var(--f-num);font-size:64px;font-weight:600;letter-spacing:.06em;background:#16242c;color:#7CF29A;border-radius:14px;padding:6px 24px;align-self:flex-start;font-variant-numeric:tabular-nums}
+.es-wrap{background:var(--surface-2);border-radius:16px;padding:8px;display:flex;justify-content:center}
+.edge-svg{width:min(420px,100%);height:auto}
+.edge{cursor:pointer}
+.e-hit{stroke:transparent;stroke-width:26;stroke-linecap:round}
+.e-vis{stroke:var(--ink-2);stroke-width:4;stroke-linecap:round}
+.edge.e-on .e-vis{stroke:var(--frog);stroke-width:9}
+.edge.e-ok .e-vis{stroke:var(--good);stroke-width:9}
+.edge.e-miss .e-vis{stroke:var(--good);stroke-width:5;stroke-dasharray:6 6}
+.edge.e-bad .e-vis{stroke:var(--bad);stroke-width:9}
+.fig-wrap{background:var(--surface-2);border-radius:16px;padding:8px;display:flex;justify-content:center}
+.fig-wrap svg{width:min(420px,100%);height:auto;max-height:300px}
+.fig-wrap text{font-family:var(--f-num);font-weight:600;fill:var(--ink)}
+.cups{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;background:var(--surface-2);border-radius:16px;padding:8px}
+.cup{width:130px;height:auto}
+.cup text{font-family:var(--f-display);fill:var(--ink)}
+.pour{display:flex;align-items:center;gap:12px;background:var(--surface-2);border-radius:14px;padding:8px 12px}
+.scups{display:flex;flex-wrap:wrap;gap:6px}
+.scup{width:22px;height:30px;border:3px solid var(--ink);border-top:0;border-radius:0 0 6px 6px;background:linear-gradient(to top,var(--water) 85%,transparent 85%)}
+.scup.big{width:34px;height:44px}
+
+
+/* ---------- batch 2 parts ---------- */
+.bal-wrap{background:var(--surface-2);border-radius:16px;padding:6px;display:flex;justify-content:center;min-width:0}
+.bal-wrap svg{width:min(400px,100%);height:auto}
+.bal-wrap text{font-family:var(--f-display);font-weight:700;fill:var(--ink)}
+.bal-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px}
+.tap{cursor:pointer}
+.t-hit{fill:transparent}
+.t-dot{fill:var(--surface);stroke:var(--ink-2);stroke-width:2.5}
+.tap.t-on .t-dot{fill:var(--frog);stroke:var(--ink)}
+.tap.t-ok .t-dot{fill:var(--good);stroke:var(--ink)}
+.tap.t-miss .t-dot{fill:var(--surface);stroke:var(--good);stroke-width:4;stroke-dasharray:4 3}
+.tap.t-bad .t-dot{fill:var(--bad);stroke:var(--ink)}
+
+
+/* ---------- batch 3 parts ---------- */
+:root{--ruler:#F6E7B4}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--ruler:#5B5130}}
+:root[data-theme="dark"]{--ruler:#5B5130}
+.ruler-wrap{background:var(--surface-2);border-radius:16px;padding:6px;overflow:hidden}
+.ruler-wrap svg{width:100%;height:auto;display:block;touch-action:none}
+.ruler-wrap text{font-family:var(--f-num);font-weight:600;fill:var(--ink)}
+.drag-ruler{cursor:grab}
+.ubox{display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border-radius:16px;padding:12px;overflow-x:auto}
+.urow{display:flex;align-items:center;gap:10px;min-width:max-content}
+.urow .say{width:90px;flex:none;font-size:17px}
+.tiles{display:flex}
+.tile{height:22px;border:2px solid var(--ink);background:var(--bt-t);box-sizing:border-box}
+.urow:nth-child(odd) .tile{background:var(--bt-h)}
+.pencil{height:22px;border-radius:4px 12px 12px 4px;background:var(--frog);border:2px solid var(--ink);box-sizing:border-box}
+.pencil.wood{background:#B9875A;border-radius:4px}
+.arr{display:flex;flex-direction:column;gap:8px;background:var(--surface-2);border-radius:16px;padding:12px;align-items:flex-start}
+.arr-row{display:flex;gap:8px}
+.snail{width:28px;height:22px;border-radius:14px 14px 4px 4px;background:radial-gradient(circle at 40% 45%,var(--line-r) 0 5px,#E7B57A 6px);border:2px solid var(--ink)}
+
+/* ---------- report ---------- */
+.rep{background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:18px;display:flex;flex-direction:column;gap:16px;min-width:0}
+.verdict{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:center;padding:14px 16px;border-radius:14px;background:var(--surface-2)}
+.verdict .big{font-family:var(--f-display);font-size:24px}
+.sess{border:1px solid var(--rule);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.sess-head{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:baseline;justify-content:space-between}
+.stage-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.stage-cell{background:var(--surface-2);border-radius:10px;padding:8px 10px;font-size:14px}
+.stage-cell .sc{font-family:var(--f-num);font-size:20px;font-weight:600}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:560px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{font-weight:500;color:var(--ink-2);font-size:13px}
+td.n{font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+details summary{cursor:pointer;color:var(--line-s);font-size:14px;font-weight:500}
+.empty{padding:24px;text-align:center;color:var(--ink-2);background:var(--surface-2);border-radius:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@keyframes hop{0%{transform:translateY(0)}40%{transform:translateY(-14px)}100%{transform:translateY(0)}}
+.hop{animation:hop .45s ease-out}
+</style>
+
+<div class="wrap" id="app"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+<script>
+(() => {
+/* ================= levels (11 stations) ================= */
+const LINES = [
+  {key:'n', letter:'N', name:'數與計算線', ids:['NC-2-1-1','NC-2-1-2','NC-2-2-2','NC-2-3-1','NC-2-4-1','NC-2-5-1','NC-2-6-2','NC-2-7-1','NC-2-8-1','NC-2-8-3']},
+  {key:'r', letter:'R', name:'關係線', ids:['RC-2-1-1','RC-2-2-1']},
+  {key:'s', letter:'S', name:'圖形與量線', ids:['SC-2-3-1','NC-2-11-1','SC-2-1-1','SC-2-1-3','SC-2-4-2','NC-2-12-1','NC-2-12-2','NC-2-13-1']},
+];
+const LEVELS = {
+  'NC-2-1-2':{name:'百位與位值換算'},
+  'NC-2-2-2':{name:'三位數加減直式'},
+  'NC-2-6-2':{name:'用乘法解決生活問題'},
+  'NC-2-5-1':{name:'數錢、換錢、付錢、找錢'},
+  'NC-2-3-1':{name:'加減互逆與驗算'},
+  'NC-2-1-1':{name:'1000 以內的數：說讀聽寫做'},
+  'SC-2-1-3':{name:'圖形的內部、外部和周界'},
+  'NC-2-11-1':{name:'用不同單位量長度'},
+  'NC-2-12-1':{name:'比比看誰裝得多'},
+  'NC-2-4-1':{name:'估算：大約是多少？', game:'estimate'},
+  'NC-2-7-1':{name:'2 和 5 的乘法'},
+  'NC-2-8-1':{name:'加減兩步驟問題'},
+  'NC-2-8-3':{name:'先加減、再乘'},
+  'RC-2-1-1':{name:'用 ＞ ＝ ＜ 比大小'},
+  'RC-2-2-1':{name:'加法換順序，和不變'},
+  'SC-2-3-1':{name:'用直尺量長度'},
+  'SC-2-1-1':{name:'角、頂點和邊'},
+  'SC-2-4-2':{name:'周長'},
+  'NC-2-12-2':{name:'比比看誰比較重'},
+  'NC-2-13-1':{name:'看時鐘：幾時幾分'},
+};
+
+/* ================= storage ================= */
+const LS_KEY='mm_sessions_v1', LS_STU='mm_student';
+const ls = {
+  get(k,d){try{const v=localStorage.getItem(k);return v==null?d:JSON.parse(v)}catch(e){return d}},
+  set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+};
+let db=null, cloud=false, sessions=ls.get(LS_KEY,[]);
+// 執行環境：Google Apps Script（學生掃碼版）或 Claude 頁面
+const IS_GAS = !!(window.google && google.script && google.script.run);
+const CFG = window.APP_CFG || {mode:'all', url:''};
+// 學生入口（Google 掃碼版）網址：沒有從伺服器拿到時用這個
+const STUDENT_URL = CFG.url || 'https://script.google.com/macros/s/AKfycbys7z0lwGT3AFz7yL58SR-gQrXtqUTvpJL2FoAWLWABNC0ZfQkg3m-18xLPkQ9_DK58/exec';
+let teacherPin = null, saveFailed = false;
+if(IS_GAS){ cloud = true; sessions = []; }
+const STUDENTS=['方宥桐','李語甯','林芝樂','武南疼','陳乙菲','陳奕辰','楊振宇','劉力倫','鄭呈胤','羅侑宗'];
+const AV_COLORS=['var(--line-n)','var(--line-r)','var(--line-s)'];
+const avatar=(n,i)=>`<span class="av" style="background:${AV_COLORS[i%3]}">${esc(n.slice(-1))}</span>`;
+let student=null, repStudent=STUDENTS[0];
+// 每位學生要練的指標（依全卷錯誤的學習單）；沒列出的學生先顯示全部關卡
+const ASSIGN={
+  '羅侑宗':['NC-2-13-1','SC-2-1-1','NC-2-12-1','NC-2-8-3','NC-2-12-2','NC-2-1-2','NC-2-5-1'],
+  '鄭呈胤':['RC-2-2-1','NC-2-1-2','NC-2-5-1','SC-2-4-2','NC-2-8-3','NC-2-1-1','NC-2-4-1'],
+  '劉力倫':['NC-2-5-1','SC-2-4-2','NC-2-12-1','NC-2-2-2','NC-2-8-3','NC-2-4-1','NC-2-1-2','SC-2-1-3'],
+  '楊振宇':['NC-2-1-2','NC-2-5-1','SC-2-4-2','NC-2-12-1','NC-2-8-1','NC-2-8-3'],
+  '陳奕辰':['NC-2-12-1','NC-2-2-2','NC-2-8-1','NC-2-8-3','NC-2-1-2','NC-2-13-1','SC-2-4-2'],
+  '陳乙菲':['SC-2-1-3','NC-2-5-1','NC-2-13-1','NC-2-8-3','NC-2-4-1','RC-2-2-1','NC-2-1-2'],
+  '武南疼':['NC-2-1-2','NC-2-11-1','NC-2-5-1','NC-2-13-1','NC-2-12-1','NC-2-3-1','NC-2-8-3','NC-2-4-1','NC-2-7-1'],
+  '方宥桐':['NC-2-4-1','NC-2-12-2','NC-2-7-1','RC-2-2-1','SC-2-3-1','RC-2-1-1','NC-2-13-1','SC-2-1-1','SC-2-4-2','NC-2-8-1','NC-2-8-3'],
+  '李語甯':['NC-2-1-2','SC-2-3-1','NC-2-6-2','NC-2-2-2','NC-2-8-3','NC-2-4-1','NC-2-12-2','NC-2-7-1'],
+  '林芝樂':['NC-2-12-2','NC-2-7-1','NC-2-1-2','NC-2-5-1','NC-2-13-1','SC-2-4-2','NC-2-8-3'],
+};
+const assigned=(who,id)=>!ASSIGN[who]||ASSIGN[who].includes(id);
+const levelCount=who=>ASSIGN[who]?ASSIGN[who].length:Object.keys(LEVELS).length;
+let writeChain = Promise.resolve();
+
+function persist(sess){
+  sess.rev = (sess.rev||0)+1;
+  const copy = JSON.parse(JSON.stringify(sess));
+  const i = sessions.findIndex(s=>s.id===copy.id);
+  if(i>=0) sessions[i]=copy; else sessions.push(copy);
+  if(IS_GAS){
+    google.script.run
+      .withSuccessHandler(()=>{ if(saveFailed){saveFailed=false;toast('');} })
+      .withFailureHandler(e=>{ console.warn(e); saveFailed=true; toast('這一題沒有存到，請檢查網路，再繼續作答就會補存。'); })
+      .saveSession(JSON.stringify(copy));
+    return;
+  }
+  if(!cloud){ ls.set(LS_KEY,sessions); return; }
+  writeChain = writeChain.then(()=>db.collection('sessions').doc(copy.id).set(copy))
+    .catch(e=>{ console.warn('save failed',e); ls.set(LS_KEY,sessions); });
+}
+
+(async()=>{
+  try{
+    if(IS_GAS || !window.claude?.use) return;
+    db = await window.claude.use('db');
+    if(!db) return;
+    cloud = true;
+    db.collection('sessions').onSnapshot(snap=>{
+      const remote = snap.docs.map(d=>d.data()).filter(Boolean);
+      // keep any local sessions not yet in the cloud (e.g. in-flight)
+      const ids = new Set(remote.map(s=>s.id));
+      sessions = remote.concat(sessions.filter(s=>!ids.has(s.id)));
+      if(view.name!=='play') render();
+    }, err=>{ console.warn(err); });
+    if(view.name!=='play') render();
+  }catch(e){ console.warn(e); }
+})();
+
+/* ================= helpers ================= */
+function toast(msg){
+  let t=document.getElementById('toast');
+  if(!t){t=document.createElement('div');t.id='toast';t.className='toast';t.setAttribute('role','status');document.body.appendChild(t);}
+  t.textContent=msg; t.hidden=!msg;
+}
+function mergeSessions(list){
+  const ids=new Set(list.map(s=>s.id));
+  sessions=list.concat(sessions.filter(s=>!ids.has(s.id)));
+}
+function loadStudent(name){
+  if(!IS_GAS) return;
+  google.script.run.withSuccessHandler(txt=>{
+    mergeSessions(JSON.parse(txt||'[]'));
+    if(view.name==='map'&&student===name) render();
+  }).withFailureHandler(e=>console.warn(e)).getStudentSessions(name);
+}
+function loadAll(pin,ok,fail){
+  google.script.run.withSuccessHandler(txt=>{teacherPin=pin;sessions=JSON.parse(txt||'[]');ok&&ok();})
+    .withFailureHandler(e=>fail&&fail(e)).getAllSessions(pin);
+}
+const $ = (s,el=document)=>el.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ri = (a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const pick = a=>a[Math.floor(Math.random()*a.length)];
+const shuffle = a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
+const r10 = n=>Math.round(n/10)*10, r100 = n=>Math.round(n/100)*100;
+const today = ()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+const fmtTime = iso=>{const d=new Date(iso);return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`};
+const OPS = {'+':(a,b)=>a+b,'-':(a,b)=>a-b};
+const opChar = o=>o==='+'?'＋':'－';
+
+/* ================= NC-2-4-1 item generators ================= */
+// two-digit number whose ones digit is not 0 or 5 (no "exactly halfway" cases)
+const okOnes = [1,2,3,4,6,7,8,9];
+function twoDigit(){return ri(1,9)*10+pick(okOnes)}
+// three-digit number near a hundred (within 35), like 292, 308, 503, 712
+function nearHundred(){let h=ri(1,9)*100, d=pick([-1,1])*ri(2,35); const n=h+d; return (n>100&&n<1000&&n%10!==5&&n%100!==50)?n:nearHundred()}
+
+function genPair(kind, op){
+  for(let t=0;t<500;t++){
+    let a,b;
+    if(kind===2){a=twoDigit();b=twoDigit();}
+    else {a=nearHundred();b=nearHundred();}
+    if(op==='-'&&a<b)[a,b]=[b,a];
+    const exact=OPS[op](a,b);
+    const R = kind===2?r10:r100, u = kind===2?10:100;
+    const est = OPS[op](R(a),R(b));
+    if(op==='-'&&exact<(kind===2?10:100)) continue;
+    if(kind===2&&op==='+'&&exact>99) continue;
+    if(kind===3&&(exact>999)) continue;
+    if(R(exact)!==est) continue;           // rounding first and rounding the answer must agree
+    if(est<=0) continue;
+    return {a,b,op,exact,est,unit:u,ra:R(a),rb:R(b)};
+  }
+}
+function optionsAround(est,u){ // three consecutive tens/hundreds, correct one in a random slot
+  let start = est - u*ri(0,2); while(start<=0) start+=u;
+  return [start,start+u,start+2*u];
+}
+
+const STAGES = [
+  {key:'line', title:'數線上的青蛙', tip:'把青蛙放到數線上，再說說牠比較靠近哪一邊。', render:it=>renderLine(it), items:()=>{
+    const lows=shuffle([1,2,3,4]), highs=shuffle([6,7,8,9]);
+    const t=shuffle([2,3,4,5,6,7,8]);
+    const list=[
+      {n:t[0]*10+lows[0]},{n:t[1]*10+highs[0]},{n:t[2]*10+highs[1]},
+      (()=>{const h=ri(1,8)*100;return {n:h+ri(2,40)}})(),
+      (()=>{const h=ri(1,8)*100;return {n:h+ri(60,98)}})(),
+    ];
+    return shuffle(list).map(x=>{const u=x.n>=100?100:10;const lo=Math.floor(x.n/u)*u;return {n:x.n,lo,hi:lo+u,unit:u,ans:(x.n-lo<lo+u-x.n)?lo:lo+u}});
+  }},
+  {key:'split', title:'拆開來估', tip:'先把每個數變成整十（或整百），再算算看。', render:it=>renderSplit(it), items:()=>shuffle([
+    genPair(2,'+'),genPair(2,'+'),genPair(2,'-'),genPair(3,'+'),genPair(3,'-')
+  ])},
+  {key:'flash', title:'閃電估算', tip:'不用算出真正的答案，看一看就選「最接近」的數。', render:it=>renderFlash(it), items:()=>shuffle([
+    genPair(2,'+'),genPair(2,'-'),genPair(2,'+'),genPair(3,'+'),genPair(3,'-'),genPair(3,pick(['+','-']))
+  ]).map(p=>({...p,opts:optionsAround(p.est,p.unit)}))},
+  {key:'detect', title:'抓錯小偵探', tip:'同學算出的答案合理嗎？先估一估再決定。', render:it=>renderDetect(it), items:genDetect},
+];
+
+function colConcat(a,b){ // 387+293 -> "5|17|10" written together = 51710 (no regrouping)
+  const A=String(a).padStart(3,'0'),B=String(b).padStart(3,'0');let s='';
+  for(let i=0;i<3;i++)s+=(+A[i]+ +B[i]);return +s;
+}
+function bigMinusSmall(a,b){ // 702-389 -> 7-3, |0-8|, |2-9| = 487
+  const A=String(a).padStart(3,'0'),B=String(b).padStart(3,'0');let s='';
+  for(let i=0;i<3;i++)s+=Math.abs(+A[i]-+B[i]);return +s;
+}
+function noCarry(a,b){
+  const A=String(a).padStart(3,'0'),B=String(b).padStart(3,'0');let s='';
+  for(let i=0;i<3;i++)s+=((+A[i]+ +B[i])%10);return +s;
+}
+function genDetect(){
+  const names=shuffle(['小芳','小奇','小祥','大維','小美','阿哲']);
+  const unreasonable=(p,w)=>w!==p.exact&&r100(w)!==p.est&&Math.abs(w-p.exact)>=150;
+  const make=(type)=>{
+    for(let t=0;t<400;t++){
+      const op = type==='concat'||type==='nocarry'?'+':type==='bigminus'||type==='wrongop'?'-':pick(['+','-']);
+      const p=genPair(3,op); if(!p) continue;
+      let shown=p.exact, wrongType='';
+      if(type==='concat'){shown=colConcat(p.a,p.b);wrongType='每一位加完直接寫在一起';}
+      if(type==='nocarry'){shown=noCarry(p.a,p.b);wrongType='忘記進位';}
+      if(type==='bigminus'){shown=bigMinusSmall(p.a,p.b);wrongType='每一位都用大減小';}
+      if(type==='wrongop'){shown=p.a+p.b;wrongType='減法算成加法';}
+      if(type!=='ok'&&!unreasonable(p,shown)) continue;
+      return {...p,shown,reasonable:type==='ok',wrongType,opts:optionsAround(p.est,100)};
+    }
+  };
+  const list=[make('ok'),make('ok'),make('concat'),make(pick(['bigminus','nocarry'])),make('wrongop')].filter(Boolean);
+  return shuffle(list).map((x,i)=>({...x,who:names[i]}));
+}
+
+/* ================= session state ================= */
+let view={name: CFG.mode==='teacher'?'pin':'login'};
+let S=null; // running game
+
+function newSession(levelId){
+  return {id:'s'+Date.now().toString(36)+Math.random().toString(36).slice(2,6), level:levelId, student,
+    startedAt:new Date().toISOString(), day:today(), finished:false, passed:false,
+    stages:GAMES[levelId].stages.map(st=>({key:st.key,title:st.title,items:[],correct:0,total:0}))};
+}
+const stagePass = st=>st.total>0&&st.correct>=st.total-1;
+
+function levelStatus(id,who=student){
+  const mine=sessions.filter(s=>s.level===id&&s.student===who);
+  if(!LEVELS[id].game) return {label:'製作中',cls:'',done:false};
+  if(!mine.length) return {label:'開始闖關',cls:'go',done:false,open:true};
+  const passDays=new Set(mine.filter(s=>s.passed).map(s=>s.day));
+  if(passDays.size>=2) return {label:'穩定會了',cls:'good',done:true,open:true};
+  if(passDays.size===1) return {label:'過關一次・改天再測',cls:'warn',done:false,open:true};
+  return {label:'練習中',cls:'bad',done:false,open:true};
+}
+
+/* ================= render: map ================= */
+function render(){
+  if(view.name==='pin') renderPin();
+  else if(view.name==='login') renderLogin();
+  else if(view.name==='map') renderMap();
+  else if(view.name==='report') renderReport();
+}
+
+function renderLogin(){
+  $('#app').innerHTML=`
+  <header class="login-top">
+    <div class="login-head">
+      <p class="eyebrow">學習扶助・二年級數學</p>
+      <h1>你是誰？點你的名字</h1>
+    </div>
+    <figure class="login-qr"><div id="qrl" aria-label="闖關入口 QR code"></div><figcaption>用平板掃這裡進來</figcaption></figure>
+  </header>
+  <section class="kids">
+    ${STUDENTS.map((n,i)=>`<button class="kid" data-kid="${esc(n)}">${avatar(n,i)}<span><span class="nm">${esc(n)}</span><br><span class="sub">${ASSIGN[n]?`要闖 ${levelCount(n)} 關`:'關卡還沒設定'}</span></span></button>`).join('')}
+  </section>
+  ${CFG.mode==='student'?'':`<footer class="foot">
+    <span>${IS_GAS?'老師預覽模式：在這裡作答也會記進試算表。':cloud?'作答紀錄會存到雲端，換裝置打開也看得到。':'紀錄只存在這台裝置的瀏覽器裡。'}</span>
+    <button class="btn ghost small" id="toReport">老師看結果</button>
+  </footer>`}`;
+  if(window.QRCode&&$('#qrl')) new QRCode($('#qrl'),{text:STUDENT_URL,width:132,height:132,correctLevel:QRCode.CorrectLevel.M});
+  else if($('.login-qr')) $('.login-qr').hidden=true;
+  document.querySelectorAll('[data-kid]').forEach(b=>b.addEventListener('click',()=>{student=b.dataset.kid;repStudent=student;view={name:'map'};render();loadStudent(student);window.scrollTo(0,0);}));
+  $('#toReport')?.addEventListener('click',()=>{view={name:'report'};render();window.scrollTo(0,0)});
+}
+
+function renderMap(){
+  const app=$('#app');
+  app.innerHTML=`
+  <header class="top">
+    <div>
+      <p class="eyebrow">學習扶助・二年級數學</p>
+      <h1>闖關地圖</h1>
+    </div>
+    <div class="me">${avatar(student,STUDENTS.indexOf(student))}<span class="nm">${esc(student)}</span><button class="btn ghost small" id="switch">換人</button></div>
+  </header>
+  <div class="legend">
+    <span><i style="background:var(--line-n)"></i>數與計算</span>
+    <span><i style="background:var(--line-r)"></i>關係</span>
+    <span><i style="background:var(--line-s)"></i>圖形與量</span>
+  </div>
+  <section class="lines">
+    ${LINES.filter(L=>L.ids.some(id=>assigned(student,id))).map(L=>`
+      <div class="line ${L.key}">
+        <div class="line-head"><span class="line-badge">${L.letter}</span><h3>${L.name}</h3></div>
+        <ol class="stations">
+          ${L.ids.filter(id=>assigned(student,id)).map(id=>{const lv=LEVELS[id],st=levelStatus(id);return `
+            <li class="st ${st.done?'done':''} ${st.open?'open':''}">
+              <button data-level="${id}" ${lv.game?'':'disabled'} aria-label="${esc(lv.name)}">
+                <span class="dot"></span>
+                <span><span class="st-name">${esc(lv.name)}</span>
+                <span class="st-meta"><span class="code">${id}</span><span class="pill ${st.cls}">${st.label}</span></span></span>
+              </button>
+            </li>`}).join('')}
+        </ol>
+      </div>`).join('')}
+  </section>
+  ${CFG.mode==='student'?'':`<footer class="foot">
+    <span>${IS_GAS?'作答紀錄會存到老師的 Google 試算表。':cloud?'作答紀錄會存到雲端，換裝置打開也看得到。':'紀錄只存在這台裝置的瀏覽器裡。'}</span>
+    <button class="btn ghost small" id="toReport">老師看結果</button>
+  </footer>`}`;
+  $('#switch').addEventListener('click',()=>{student=null;view={name:'login'};render();window.scrollTo(0,0);});
+  app.querySelectorAll('[data-level]').forEach(b=>b.addEventListener('click',()=>startLevel(b.dataset.level)));
+  $('#toReport')?.addEventListener('click',()=>{view={name:'report'};render();window.scrollTo(0,0)});
+}
+
+/* ================= teacher PIN (Google 版) ================= */
+function renderPin(){
+  $('#app').innerHTML=`
+  <header class="login-head"><p class="eyebrow">學習扶助・老師後台</p><h1>輸入老師密碼</h1></header>
+  <form class="rep pin-form" id="pinForm">
+    <label for="pin">密碼</label>
+    <input id="pin" type="password" autocomplete="current-password" inputmode="numeric">
+    <button class="btn" type="submit">進入後台</button>
+    <p class="muted" id="pinMsg" role="alert"></p>
+  </form>`;
+  $('#pin').focus();
+  $('#pinForm').addEventListener('submit',e=>{
+    e.preventDefault();
+    const pin=$('#pin').value.trim(); $('#pinMsg').textContent='讀取中…';
+    loadAll(pin,()=>{view={name:'report'};render();},()=>{$('#pinMsg').textContent='密碼不對，請再試一次。';});
+  });
+}
+
+/* ================= game: NC-2-4-1 ================= */
+function startLevel(id){
+  const G=GAMES[id]; if(!G) return;
+  S={level:id, G, sess:newSession(id), si:0, ii:0, items:null, all:G.stages.map(st=>st.items()), t0:0};
+  view={name:'play'};
+  showStageIntro();
+}
+function playShell(inner){
+  const N=S.G.stages.length, done=S.si>=N, st=done?{title:'闖關完成'}:S.G.stages[S.si];
+  const track=S.sess.stages.map((s,k)=>{
+    const n = S.all[k].length;
+    let dots='';
+    for(let i=0;i<n;i++){
+      const it=s.items[i];
+      const cls = it?(it.ok?'ok':'no'):(k===S.si&&i===S.ii&&S.items?'now':'');
+      dots+=`<b class="${cls}"></b>`;
+    }
+    return `<span class="leg" title="${s.title}">${dots}</span>`;
+  }).join('');
+  $('#app').innerHTML=`
+  <section class="play">
+    <div class="play-top">
+      <div class="stage-title"><span class="eyebrow">${S.level}・${done?'全部走完':`第 ${S.si+1} 站／共 ${N} 站`}</span><h2>${st.title}</h2></div>
+      <button class="btn ghost small" id="quit">回地圖</button>
+    </div>
+    <div class="track" aria-label="進度">${track}</div>
+    ${inner}
+  </section>`;
+  $('#quit').addEventListener('click',()=>{S=null;view={name:'map'};render();});
+}
+function showStageIntro(){
+  const st=S.G.stages[S.si];
+  if(S.si===0){
+    playShell(`<div class="center">
+      <p class="say">${S.G.intro}</p>
+      <div class="intro-list">
+        ${S.G.stages.map((s,i)=>`<div><b>${i+1}</b><span><strong>${s.title}</strong><br><span class="muted">${s.tip}</span></span></div>`).join('')}
+      </div>
+      <button class="btn" id="go">出發！</button></div>`);
+  } else {
+    playShell(`<div class="center"><p class="eyebrow">下一站</p><h2>${st.title}</h2><p class="say">${st.tip}</p><button class="btn" id="go">開始</button></div>`);
+  }
+  $('#go').addEventListener('click',()=>{S.items=S.all[S.si];S.ii=0;nextItem();});
+}
+function nextItem(){
+  if(S.ii>=S.items.length){
+    S.si++;
+    if(S.si>=S.G.stages.length){finishSession();return;}
+    S.items=null;showStageIntro();return;
+  }
+  S.t0=performance.now();
+  S.G.stages[S.si].render(S.items[S.ii]);
+}
+function record(rec){
+  const st=S.sess.stages[S.si];
+  rec.ms=Math.round(performance.now()-S.t0);
+  st.items.push(rec); st.total=st.items.length; st.correct=st.items.filter(x=>x.ok).length;
+  persist(S.sess);
+}
+function showFeedback(ok,msg){
+  const box=document.createElement('div');
+  box.className='feedback '+(ok?'ok':'no');
+  box.innerHTML=`<p><strong>${ok?'答對了！':'再看一次'}</strong>${msg}</p><button class="btn" id="next">下一題</button>`;
+  $('.play').appendChild(box);
+  const b=$('#next',box); b.focus({preventScroll:true});
+  box.scrollIntoView({block:'nearest',behavior:'smooth'});
+  b.addEventListener('click',()=>{S.ii++;nextItem();});
+}
+
+/* ---- stage 1: number line ---- */
+function renderLine(it){
+  const W=640,L=50,R=590,Y=120;
+  const twoD=it.unit===10;
+  const ticks=[]; const step=twoD?1:10;
+  for(let v=it.lo;v<=it.hi;v+=step){const x=L+(v-it.lo)/(it.hi-it.lo)*(R-L);ticks.push(`<line x1="${x}" x2="${x}" y1="${Y-(v===it.lo||v===it.hi?16:10)}" y2="${Y+(v===it.lo||v===it.hi?16:10)}" stroke="var(--ink)" stroke-width="${v===it.lo||v===it.hi?4:2}"/>`);}
+  playShell(`
+    <p class="prompt">把青蛙拖到 <span class="num" style="font-size:30px;font-weight:600">${it.n}</span> 的位置，再按「放好了」。</p>
+    <div class="nl-wrap"><svg id="nl" viewBox="0 0 ${W} 200" role="img" aria-label="${it.lo} 到 ${it.hi} 的數線">
+      <line x1="${L}" x2="${R}" y1="${Y}" y2="${Y}" stroke="var(--ink)" stroke-width="4" stroke-linecap="round"/>
+      ${ticks.join('')}
+      <text x="${L}" y="${Y+52}" text-anchor="middle" font-size="30">${it.lo}</text>
+      <text x="${R}" y="${Y+52}" text-anchor="middle" font-size="30">${it.hi}</text>
+      <g id="frog" class="frog" transform="translate(${W/2} ${Y})">
+        <g id="frogBody">
+        <line x1="0" y1="0" x2="0" y2="-22" stroke="var(--frog-ink)" stroke-width="3"/>
+        <ellipse cx="0" cy="-44" rx="26" ry="20" fill="var(--frog)" stroke="var(--frog-ink)" stroke-width="2.5"/>
+        <circle cx="-11" cy="-62" r="9" fill="var(--frog)" stroke="var(--frog-ink)" stroke-width="2.5"/>
+        <circle cx="11" cy="-62" r="9" fill="var(--frog)" stroke="var(--frog-ink)" stroke-width="2.5"/>
+        <circle cx="-11" cy="-62" r="3.5" fill="var(--frog-ink)"/><circle cx="11" cy="-62" r="3.5" fill="var(--frog-ink)"/>
+        <path d="M-10 -40 Q0 -32 10 -40" fill="none" stroke="var(--frog-ink)" stroke-width="2.5" stroke-linecap="round"/>
+        <rect x="-34" y="-84" width="68" height="90" fill="transparent"/>
+        </g>
+      </g>
+    </svg></div>
+    <div id="lineStep"><button class="btn" id="placed">放好了</button> <span class="muted" style="margin-left:8px">青蛙可以左右拖動</span></div>`);
+  const svg=$('#nl'), frog=$('#frog');
+  let x=W/2, dragging=false, moved=false;
+  const toVal=px=>{let v=it.lo+(px-L)/(R-L)*(it.hi-it.lo);return twoD?Math.round(v):Math.round(v)};
+  const toX=v=>L+(v-it.lo)/(it.hi-it.lo)*(R-L);
+  const setX=px=>{px=Math.max(L,Math.min(R,px)); if(twoD) px=toX(toVal(px)); x=px; frog.setAttribute('transform',`translate(${x} ${Y})`);};
+  const svgX=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse()).x};
+  svg.addEventListener('pointerdown',e=>{dragging=true;moved=true;svg.setPointerCapture(e.pointerId);setX(svgX(e));});
+  svg.addEventListener('pointermove',e=>{if(dragging)setX(svgX(e));});
+  svg.addEventListener('pointerup',()=>dragging=false);
+  svg.addEventListener('pointercancel',()=>dragging=false);
+  $('#placed').addEventListener('click',()=>{
+    const placed=toVal(x);
+    const tol=twoD?1:10;
+    const placeOk=moved&&Math.abs(placed-it.n)<=tol;
+    svg.style.pointerEvents='none';
+    const tPlace=Math.round(performance.now()-S.t0);
+    $('#lineStep').innerHTML=`<p class="prompt" style="margin-bottom:10px">${it.n} 比較靠近哪一個數？</p>
+      <div class="choices"><button class="choice" data-v="${it.lo}">${it.lo}</button><button class="choice" data-v="${it.hi}">${it.hi}</button></div>`;
+    document.querySelectorAll('#lineStep .choice').forEach(btn=>btn.addEventListener('click',()=>{
+      const v=+btn.dataset.v, nearOk=v===it.ans;
+      document.querySelectorAll('#lineStep .choice').forEach(b=>{b.disabled=true;if(+b.dataset.v===it.ans)b.classList.add('right');else if(b===btn)b.classList.add('wrong');});
+      const tags=[];
+      if(!placeOk) tags.push('數線位置不對');
+      if(!nearOk) tags.push(v===it.lo?'直接捨去（都選比較小的）':'遠近判斷錯');
+      record({q:`${it.n} 靠近 ${it.lo} 還是 ${it.hi}`,answer:it.ans,given:v,placed,placeOk,nearOk,ok:placeOk&&nearOk,tPlace,tags});
+      // show the frog at the correct spot and hop
+      setX(toX(it.n)); const body=$('#frogBody'); body.classList.remove('hop'); void body.getBBox(); body.classList.add('hop');
+      const dLo=it.n-it.lo, dHi=it.hi-it.n;
+      const msg=`${it.lo} 到 ${it.n} 差 ${dLo}，${it.n} 到 ${it.hi} 差 ${dHi}，所以 ${it.n} 比較靠近 ${it.ans}。`+(placeOk?'':` 青蛙應該放在${dLo<dHi?'靠近 '+it.lo:'靠近 '+it.hi}的地方喔。`);
+      showFeedback(placeOk&&nearOk,msg);
+    }));
+  });
+}
+
+/* ---- stage 2: split then estimate ---- */
+function renderSplit(it){
+  const u=it.unit, word=u===10?'整十':'整百';
+  const lowA=Math.floor(it.a/u)*u, lowB=Math.floor(it.b/u)*u;
+  const est=it.est, opts=optionsAround(est,u);
+  playShell(`
+    <p class="prompt">估算 <span class="num" style="font-size:30px;font-weight:600">${it.a} ${opChar(it.op)} ${it.b}</span>：先把每個數變成最接近的${word}。</p>
+    <div class="steps">
+      <div class="step" id="s1"><span class="lhs">${it.a} ≈</span><div class="choices">${[lowA,lowA+u].map(v=>`<button class="choice" data-v="${v}">${v}</button>`).join('')}</div></div>
+      <div class="step dim" id="s2"><span class="lhs">${it.b} ≈</span><div class="choices">${[lowB,lowB+u].map(v=>`<button class="choice" data-v="${v}" disabled>${v}</button>`).join('')}</div></div>
+      <div class="step dim" id="s3"><span class="lhs" id="s3l">？ ${opChar(it.op)} ？ ＝</span><div class="choices">${opts.map(v=>`<button class="choice" data-v="${v}" disabled>${v}</button>`).join('')}</div></div>
+    </div>`);
+  const res={};
+  const wire=(id,correct,key,after)=>{
+    const box=$('#'+id);
+    box.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>{
+      const v=+b.dataset.v; res[key]=v;
+      box.querySelectorAll('.choice').forEach(x=>{x.disabled=true;if(+x.dataset.v===correct)x.classList.add('right');else if(x===b)x.classList.add('wrong');});
+      after();
+    }));
+  };
+  const enable=id=>{const b=$('#'+id);b.classList.remove('dim');b.querySelectorAll('.choice').forEach(x=>x.disabled=false);};
+  wire('s1',it.ra,'ra',()=>{enable('s2');});
+  wire('s2',it.rb,'rb',()=>{$('#s3l').textContent=`${it.ra} ${opChar(it.op)} ${it.rb} ＝`;enable('s3');});
+  wire('s3',est,'est',()=>{
+    const okA=res.ra===it.ra, okB=res.rb===it.rb, okE=res.est===est;
+    const tags=[]; if(!okA||!okB) tags.push('取整十／整百錯'); if(!okE) tags.push('估完後計算錯');
+    record({q:`${it.a}${it.op}${it.b}`,answer:est,given:res.est,steps:{ra:res.ra,rb:res.rb},ok:okA&&okB&&okE,tags});
+    showFeedback(okA&&okB&&okE,`${it.a} ≈ ${it.ra}，${it.b} ≈ ${it.rb}，${it.ra} ${opChar(it.op)} ${it.rb} ＝ ${est}，所以答案大約是 ${est}。`);
+  });
+}
+
+/* ---- stage 3: flash estimate ---- */
+const FLASH_MS=8000;
+function renderFlash(it){
+  playShell(`
+    <p class="prompt">答案最接近哪一個數？</p>
+    <div class="timer" aria-hidden="true"><i id="bar"></i></div>
+    <div class="big-q">${it.a} ${opChar(it.op)} ${it.b}</div>
+    <div class="choices" id="fc">${it.opts.map(v=>`<button class="choice" data-v="${v}">${v}</button>`).join('')}</div>`);
+  const bar=$('#bar');
+  requestAnimationFrame(()=>{bar.style.transitionDuration=FLASH_MS+'ms';bar.style.transform='scaleX(0)';});
+  document.querySelectorAll('#fc .choice').forEach(b=>b.addEventListener('click',()=>{
+    const v=+b.dataset.v, ok=v===it.est;
+    bar.style.transitionDuration='0ms';
+    document.querySelectorAll('#fc .choice').forEach(x=>{x.disabled=true;if(+x.dataset.v===it.est)x.classList.add('right');else if(x===b)x.classList.add('wrong');});
+    const ms=performance.now()-S.t0, tags=[];
+    if(!ok) tags.push('估算選錯');
+    if(ms>FLASH_MS) tags.push('超過 8 秒（可能在精算）');
+    record({q:`${it.a}${it.op}${it.b}`,answer:it.est,given:v,ok,tags});
+    showFeedback(ok,`${it.a} ≈ ${it.ra}，${it.b} ≈ ${it.rb}，${it.ra} ${opChar(it.op)} ${it.rb} ＝ ${it.est}。`);
+  }));
+}
+
+/* ---- stage 4: is it reasonable? ---- */
+function renderDetect(it){
+  playShell(`
+    <div class="detective"><span class="face">${it.who.slice(-1)}</span>
+      <div><p class="muted">${it.who}算出：</p><p class="eq">${it.a} ${opChar(it.op)} ${it.b} ＝ ${it.shown}</p></div></div>
+    <div class="steps">
+      <div class="step" id="d1"><span class="say" style="min-width:150px">這個答案合理嗎？</span>
+        <div class="choices"><button class="choice txt" data-v="1">合理</button><button class="choice txt" data-v="0">不合理</button></div></div>
+      <div class="step dim" id="d2"><span class="say" style="min-width:150px">正確答案大約是多少？</span>
+        <div class="choices">${it.opts.map(v=>`<button class="choice" data-v="${v}" disabled>${v}</button>`).join('')}</div></div>
+    </div>`);
+  let judged=null;
+  $('#d1').querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>{
+    judged=b.dataset.v==='1';
+    $('#d1').querySelectorAll('.choice').forEach(x=>{x.disabled=true;if(x===b)x.classList.add('picked');});
+    const d2=$('#d2'); d2.classList.remove('dim'); d2.querySelectorAll('.choice').forEach(x=>x.disabled=false);
+  }));
+  $('#d2').querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>{
+    const v=+b.dataset.v;
+    $('#d2').querySelectorAll('.choice').forEach(x=>{x.disabled=true;if(+x.dataset.v===it.est)x.classList.add('right');else if(x===b)x.classList.add('wrong');});
+    $('#d1').querySelectorAll('.choice').forEach(x=>{const right=(x.dataset.v==='1')===it.reasonable;x.classList.remove('picked');if(right)x.classList.add('right');else if(x.dataset.v===(judged?'1':'0'))x.classList.add('wrong');});
+    const judgeOk=judged===it.reasonable, estOk=v===it.est, tags=[];
+    if(!judgeOk) tags.push(it.reasonable?'把合理當成不合理':'把不合理當成合理');
+    if(judgeOk&&!estOk) tags.push('判斷對，但說不出大約多少（可能只看位數）');
+    else if(!estOk) tags.push('估算選錯');
+    record({q:`${it.who}：${it.a}${it.op}${it.b}=${it.shown}`,answer:(it.reasonable?'合理':'不合理')+'，約 '+it.est,given:(judged?'合理':'不合理')+'，約 '+v,
+      ok:judgeOk&&estOk,reasonable:it.reasonable,wrongType:it.wrongType,tags});
+    const R=`${it.a} ≈ ${it.ra}，${it.b} ≈ ${it.rb}，${it.ra} ${opChar(it.op)} ${it.rb} ＝ ${it.est}，`;
+    showFeedback(judgeOk&&estOk, R+(it.reasonable?`${it.shown} 很接近 ${it.est}，所以合理。`:`${it.shown} 離 ${it.est} 太遠了，所以不合理。`));
+  }));
+}
+
+function finishSession(){
+  const s=S.sess;
+  s.finished=true; s.finishedAt=new Date().toISOString();
+  s.passed=s.stages.every(stagePass);
+  persist(s);
+  const total=s.stages.reduce((a,x)=>a+x.total,0), correct=s.stages.reduce((a,x)=>a+x.correct,0);
+  const stars=correct/total>=.9?3:correct/total>=.7?2:1;
+  playShell(`<div class="center">
+    <p class="eyebrow">每一站都走完了</p>
+    <div class="stars" aria-label="${stars} 顆星">${'★'.repeat(stars)}${'☆'.repeat(3-stars)}</div>
+    <h2>答對 <span class="num">${correct}</span> ／ <span class="num">${total}</span> 題</h2>
+    <p class="say">${s.passed?`你會「${esc(LEVELS[S.level].name)}」了！過幾天再來挑戰一次。`:'有幾題要再想一想，下次再來試試看！'}</p>
+    <button class="btn" id="home">回地圖</button></div>`);
+  $('.track').remove();
+  $('#home').addEventListener('click',()=>{S=null;view={name:'map'};render();});
+}
+
+/* ================= report ================= */
+let repLevel=null;
+function renderReport(){
+  const who=repStudent;
+  const lvList=LINES.flatMap(L=>L.ids).filter(id=>assigned(who,id)&&GAMES[id]);
+  if(!lvList.includes(repLevel)) repLevel=lvList.find(id=>sessions.some(s=>s.level===id&&s.student===who))||lvList[0]||null;
+  const lv=repLevel;
+  const list=lv?sessions.filter(s=>s.level===lv&&s.student===who).sort((a,b)=>b.startedAt.localeCompare(a.startedAt)):[];
+  const st=lv?levelStatus(lv,who):{label:''};
+  const finished=list.filter(s=>s.finished);
+  // aggregate tags across all finished sessions
+  const tagCount={};
+  list.forEach(s=>s.stages.forEach(g=>g.items.forEach(it=>(it.tags||[]).forEach(t=>tagCount[t]=(tagCount[t]||0)+1))));
+  const tagsSorted=Object.entries(tagCount).sort((a,b)=>b[1]-a[1]);
+  const allTimes=list.flatMap(s=>s.stages.flatMap(g=>g.items.map(i=>i.ms||0)));
+  const avgT=allTimes.length?(allTimes.reduce((a,b)=>a+b,0)/allTimes.length/1000).toFixed(1):null;
+
+  $('#app').innerHTML=`
+  <header class="top">
+    <div><p class="eyebrow">老師報表</p><h1>全班進度</h1></div>
+    <div class="row-btns">
+      ${IS_GAS?'<button class="btn ghost small" id="refresh">重新整理</button>':''}
+      <button class="btn ghost small" id="back">${student?'回地圖':'回選名字'}</button>
+    </div>
+  </header>
+  ${IS_GAS&&CFG.url?`<section class="rep qr-card">
+    <div id="qr" class="qr" aria-label="學生入口 QR code"></div>
+    <div class="qr-text"><h3>學生入口</h3><p class="muted">學生用平板或手機掃這個 QR code，點自己的名字就能開始。不用登入。</p>
+      <p class="url">${esc(CFG.url)}</p><button class="btn small" id="copyUrl">複製網址</button></div>
+  </section>`:''}
+  ${progressGrid(who)}
+  <h2>${esc(who)}・作答細節</h2>
+  ${lv?`<div class="lv-tabs" role="tablist">${lvList.map(id=>`<button role="tab" class="lv-tab ${id===lv?'on':''}" aria-selected="${id===lv}" data-lv="${id}"><span class="code">${id}</span>${esc(SHORT[id]||LEVELS[id].name)}</button>`).join('')}</div>
+  <section class="rep">
+    <div class="verdict">
+      <div><p class="eyebrow">目前判定</p><p class="big">${st.label==='開始闖關'?'還沒玩過':st.label}</p></div>
+      <div><p class="eyebrow">完成次數</p><p class="big num">${finished.length}</p></div>
+      <div><p class="eyebrow">平均每題</p><p class="big num">${avgT?avgT+' 秒':'—'}</p></div>
+    </div>
+    <p class="note">判定規則：每一站最多錯 1 題算通過，每一站都通過算「過關一次」。在不同的兩天都過關，才算「穩定會了」。${GAMES[lv].note||''}</p>
+    ${tagsSorted.length?`<div><h3 style="margin-bottom:8px">常見錯誤</h3><div class="tags">${tagsSorted.map(([t,n])=>`<span class="pill bad">${esc(t)} × ${n}</span>`).join('')}</div></div>`:''}
+  </section>
+  ${list.length?list.map(sessCard).join(''):`<div class="empty">${esc(who)} 這一關還沒有作答紀錄。</div>`}`:`<div class="empty">${esc(who)} 需要練的關卡都還在製作中。</div>`}
+  `;
+  $('#back').addEventListener('click',()=>{view={name:student?'map':'login'};render();window.scrollTo(0,0)});
+  $('#refresh')?.addEventListener('click',()=>{$('#refresh').textContent='讀取中…';loadAll(teacherPin,()=>renderReport(),()=>{$('#refresh').textContent='重新整理';});});
+  if($('#qr')&&window.QRCode){ new QRCode($('#qr'),{text:CFG.url,width:180,height:180,correctLevel:QRCode.CorrectLevel.M}); }
+  $('#copyUrl')?.addEventListener('click',()=>{
+    const done=()=>{$('#copyUrl').textContent='已複製';};
+    try{navigator.clipboard.writeText(CFG.url).then(done,()=>{});}catch(e){}
+  });
+  document.querySelectorAll('[data-rep]').forEach(b=>b.addEventListener('click',()=>{repStudent=b.dataset.rep;repLevel=null;renderReport();}));
+  document.querySelectorAll('[data-lv]').forEach(b=>b.addEventListener('click',()=>{repLevel=b.dataset.lv;renderReport();}));
+}
+const SHORT={'NC-2-1-1':'1000內的數','NC-2-1-2':'百位換算','NC-2-2-2':'三位數直式','NC-2-3-1':'加減互逆','NC-2-4-1':'估算','NC-2-5-1':'錢幣','NC-2-6-2':'乘法應用','NC-2-7-1':'2、5乘法','NC-2-8-1':'加減兩步驟','NC-2-8-3':'先加減再乘','RC-2-1-1':'＞＝＜','RC-2-2-1':'加法交換','SC-2-3-1':'量長度','NC-2-11-1':'不同單位量','SC-2-1-1':'角頂點邊','SC-2-1-3':'內外部周界','SC-2-4-2':'周長','NC-2-12-1':'容量','NC-2-12-2':'重量','NC-2-13-1':'時鐘'};
+function cellState(n,id){
+  if(!assigned(n,id)) return {k:'none',t:''};
+  if(!LEVELS[id].game) return {k:'todo',t:'待製作'};
+  const st=levelStatus(id,n);
+  if(st.label==='開始闖關') return {k:'new',t:'未玩'};
+  if(st.label==='穩定會了') return {k:'good',t:'會了'};
+  if(st.label.startsWith('過關一次')) return {k:'warn',t:'過1次'};
+  return {k:'bad',t:'練習中'};
+}
+function progressGrid(who){
+  const cols=LINES.flatMap(L=>L.ids.map(id=>({id,line:L.key}))).filter(c=>STUDENTS.some(n=>assigned(n,c.id)));
+  const row=n=>{
+    const need=cols.filter(c=>assigned(n,c.id)).length;
+    const good=cols.filter(c=>cellState(n,c.id).k==='good').length;
+    const pct=need?Math.round(good/need*100):0;
+    return `<tr class="${n===who?'sel':''}"><th scope="row" class="pg-name"><button data-rep="${esc(n)}">${esc(n)}</button></th>
+      <td class="pg-sum"><span class="num">${good}/${need}</span><span class="bar"><i style="width:${pct}%"></i></span></td>
+      ${cols.map(c=>{const cs=cellState(n,c.id);return `<td class="pg-c ${cs.k}" title="${esc(n)}・${esc(LEVELS[c.id].name)}">${cs.t}</td>`}).join('')}</tr>`;
+  };
+  const foot=cols.map(c=>{const need=STUDENTS.filter(n=>assigned(n,c.id)).length;const good=STUDENTS.filter(n=>cellState(n,c.id).k==='good').length;return `<td class="pg-c num">${good}/${need}</td>`}).join('');
+  return `<section class="rep">
+    <div class="pg-legend"><span class="pg-c good">會了</span>不同兩天都過關 <span class="pg-c warn">過1次</span>改天要再測 <span class="pg-c bad">練習中</span>還沒過關 <span class="pg-c new">未玩</span>可以玩了 <span class="pg-c todo">待製作</span>關卡還沒做好 <span class="pg-c none"></span>不需要練</div>
+    <div class="tbl-wrap pg-wrap"><table class="pg">
+      <thead><tr><th class="pg-name">學生</th><th class="pg-sum">會了／需練</th>${cols.map(c=>`<th class="pg-h ${c.line}"><span class="code">${c.id}</span>${SHORT[c.id]||LEVELS[c.id].name}</th>`).join('')}</tr></thead>
+      <tbody>${STUDENTS.map(row).join('')}</tbody>
+      <tfoot><tr><th class="pg-name">會了的人數</th><td></td>${foot}</tr></tfoot>
+    </table></div>
+    <p class="note">點學生名字，下面會顯示他每一關的作答細節。</p>
+  </section>`;
+}
+
+function sessCard(s){
+  const total=s.stages.reduce((a,x)=>a+x.total,0), correct=s.stages.reduce((a,x)=>a+x.correct,0);
+  const status=!s.finished?'<span class="pill">沒有做完</span>':s.passed?'<span class="pill good">過關</span>':'<span class="pill bad">未過關</span>';
+  return `<section class="sess rep">
+    <div class="sess-head"><h3><span class="num">${fmtTime(s.startedAt)}</span>　答對 <span class="num">${correct}/${total}</span></h3>${status}</div>
+    <div class="stage-row">${s.stages.map(g=>{
+      const pass=stagePass(g);
+      const avg=g.items.length?(g.items.reduce((a,i)=>a+(i.ms||0),0)/g.items.length/1000).toFixed(1):'—';
+      return `<div class="stage-cell"><div>${g.title}</div><div><span class="sc">${g.correct}/${g.total||0}</span> ${g.total?(pass?'<span class="pill good">通過</span>':'<span class="pill bad">未通過</span>'):''}</div><div class="muted">平均 <span class="num">${avg}</span> 秒</div></div>`}).join('')}</div>
+    <details><summary>看每一題</summary><div class="tbl-wrap"><table>
+      <thead><tr><th>站</th><th>題目</th><th>正確</th><th>她的答案</th><th>秒</th><th>錯誤類型</th></tr></thead>
+      <tbody>${s.stages.flatMap(g=>g.items.map(i=>`<tr>
+        <td>${g.title}</td><td>${esc(i.q)}${i.wrongType?`<div class="muted">（錯法：${esc(i.wrongType)}）</div>`:''}</td>
+        <td class="n">${esc(i.answer)}</td>
+        <td class="n">${i.ok?'✓ ':'✗ '}${esc(i.given)}${i.steps?`<div class="muted">取整：${i.steps.ra}、${i.steps.rb}</div>`:''}${i.placed!=null?`<div class="muted">青蛙放在 ${i.placed}</div>`:''}${i.note?`<div class="muted">${esc(i.note)}</div>`:''}</td>
+        <td class="n">${((i.ms||0)/1000).toFixed(1)}</td>
+        <td>${(i.tags||[]).map(t=>`<span class="pill bad">${esc(t)}</span>`).join(' ')}</td></tr>`)).join('')}</tbody>
+    </table></div></details>
+  </section>`;
+}
+
+/* ================= shared components ================= */
+function finishItem(rec, ok, msg){ rec.ok=ok; record(rec); showFeedback(ok,msg); }
+function choicesHTML(opts, cls=''){
+  return `<div class="choices">${opts.map(o=>{const v=typeof o==='object'?o.v:o, t=typeof o==='object'?o.t:o;return `<button class="choice ${cls}" data-v="${esc(v)}">${t}</button>`}).join('')}</div>`;
+}
+function wireChoices(box, onPick){
+  box.querySelectorAll('.choice').forEach(b=>b.addEventListener('click',()=>{ if(b.disabled) return; onPick(b.dataset.v,b); }));
+}
+function markChoices(box, correct, picked){
+  box.querySelectorAll('.choice').forEach(x=>{x.disabled=true; if(String(x.dataset.v)===String(correct)) x.classList.add('right'); else if(x===picked) x.classList.add('wrong');});
+}
+function enableStep(el){ el.classList.remove('dim'); el.querySelectorAll('button').forEach(b=>b.disabled=false); }
+
+/* number pad: slots are .np-slot[data-i] inside root, keys rendered by padHTML() */
+function slotHTML(i,{pre='',post='',aria='',sm=false}={}){
+  return `<span class="np-g">${pre?`<span class="np-t">${pre}</span>`:''}<button type="button" class="np-slot ${sm?'sm':''}" data-i="${i}" aria-label="${esc(aria||'答案')}"></button>${post?`<span class="np-t">${post}</span>`:''}</span>`;
+}
+function padHTML(){
+  return `<div class="np-keys">${['1','2','3','4','5','6','7','8','9','⌫','0','確定'].map(k=>`<button type="button" class="np-k ${k==='確定'?'go':k==='⌫'?'del':''}" data-k="${k}" aria-label="${k==='⌫'?'刪除':k}">${k}</button>`).join('')}</div>`;
+}
+function wirePad(root, opt, onSubmit){
+  const slots=[...root.querySelectorAll('.np-slot')].sort((a,b)=>a.dataset.i-b.dataset.i);
+  const dir=opt.dir||1, max=opt.max||slots.map(()=>4), vals=slots.map(()=>'');
+  const okBtn=root.querySelector('.np-k.go');
+  let act=opt.start??0, done=false;
+  const ready=()=>opt.ready?opt.ready(vals):vals.every(v=>v!=='');
+  const paint=()=>{slots.forEach((el,i)=>{el.textContent=vals[i];el.classList.toggle('act',i===act&&!done);});okBtn.disabled=done||!ready();};
+  const inRange=i=>i>=0&&i<slots.length;
+  const press=k=>{
+    if(done) return;
+    if(k==='⌫'){ if(!vals[act]&&inRange(act-dir)) act-=dir; vals[act]=vals[act].slice(0,-1); }
+    else if(k==='確定'){ if(!ready()) return; done=true; paint(); root.querySelectorAll('.np-k,.np-slot').forEach(b=>b.disabled=true); document.removeEventListener('keydown',kb); onSubmit(vals.slice()); return; }
+    else {
+      if(vals[act].length>=max[act]){ if(inRange(act+dir)) act+=dir; else return; }
+      vals[act]+=k;
+      if(vals[act].length>=max[act]&&inRange(act+dir)) act+=dir;
+    }
+    paint();
+  };
+  slots.forEach((el,i)=>el.addEventListener('click',()=>{if(!done){act=i;paint();}}));
+  root.querySelectorAll('.np-k').forEach(b=>b.addEventListener('click',()=>press(b.dataset.k)));
+  const kb=e=>{ if(!root.isConnected){document.removeEventListener('keydown',kb);return;}
+    if(/^[0-9]$/.test(e.key)) press(e.key); else if(e.key==='Backspace'){e.preventDefault();press('⌫');} else if(e.key==='Enter'&&ready()){e.preventDefault();press('確定');} };
+  document.addEventListener('keydown',kb);
+  paint();
+}
+/* one typed answer: returns html; call askNum(root,max,cb) after render */
+function oneAnswerHTML(pre='',post=''){ return `<div class="np"><div class="np-slots">${slotHTML(0,{pre,post,aria:'答案'})}</div>${padHTML()}</div>`; }
+function askNum(root,max,cb){ wirePad(root,{max:[max]},v=>cb(v[0]===''?NaN:+v[0])); }
+
+/* base-ten blocks */
+const BT_NAME={h:'百格板',t:'長條',o:'小方塊'};
+function piece(k){ return `<span class="bt ${k}" aria-hidden="true"></span>`; }
+function blocksPicture(h,t,o){
+  const groups=shuffle([['h',h],['t',t],['o',o]]).filter(g=>g[1]>0);
+  return `<div class="bt-pic" role="img" aria-label="一些積木">${groups.map(([k,n])=>`<span class="bt-grp">${Array.from({length:n},()=>piece(k)).join('')}</span>`).join('')}</div>`;
+}
+function blocksBuilder(mount){
+  const c={h:0,t:0,o:0};
+  mount.innerHTML=`<div class="bb">${['h','t','o'].map(k=>`<div class="bb-col"><div class="bb-name">${{h:'百（百格板）',t:'十（長條）',o:'一（小方塊）'}[k]}</div><div class="bb-area" data-k="${k}"></div><div class="bb-ctl"><button type="button" class="bb-b" data-k="${k}" data-d="-1" aria-label="拿走一個${BT_NAME[k]}">－</button><button type="button" class="bb-b" data-k="${k}" data-d="1" aria-label="多放一個${BT_NAME[k]}">＋</button></div></div>`).join('')}</div>`;
+  const paint=()=>['h','t','o'].forEach(k=>{mount.querySelector(`.bb-area[data-k="${k}"]`).innerHTML=Array.from({length:c[k]},()=>piece(k)).join('');});
+  mount.querySelectorAll('.bb-b').forEach(b=>b.addEventListener('click',()=>{const k=b.dataset.k;c[k]=Math.max(0,Math.min(19,c[k]+ +b.dataset.d));paint();}));
+  paint();
+  return {get:()=>({...c}), lock:()=>mount.querySelectorAll('.bb-b').forEach(b=>b.disabled=true)};
+}
+const ZD=['零','一','二','三','四','五','六','七','八','九'];
+function zh(n){
+  if(n===1000) return '一千';
+  const h=Math.floor(n/100),t=Math.floor(n/10)%10,o=n%10; let s='';
+  if(h) s+=(h===2?'兩':ZD[h])+'百';
+  if(t) s+=(t===1&&!h?'':ZD[t])+'十'; else if(h&&o) s+='零';
+  if(o) s+=ZD[o];
+  return s||'零';
+}
+const digits3=n=>[Math.floor(n/100),Math.floor(n/10)%10,n%10];
+
+/* money */
+const DENOMS=[1000,500,100,50,10,5,1];
+const moneyHTML=v=>v>=100?`<span class="bill b${v}" aria-label="${v}元紙鈔"><b>${v}</b><i>元</i></span>`:`<span class="coin c${v}" aria-label="${v}元硬幣">${v}</span>`;
+
+/* vertical calc */
+function vertHTML(a,b,op,{answer=null,slots=true}={}){
+  const A=digits3(a),B=digits3(b), lead=x=>x<100;
+  const cell=(d,i,n)=>`<span class="vc-d">${(i===0&&n<100)||(i===1&&n<10)?'':d}</span>`;
+  let ans='';
+  if(slots) ans=[0,1,2].map(i=>`<span class="vc-d">${slotHTML(i,{aria:['百位','十位','個位'][i],sm:true})}</span>`).join('');
+  else if(answer!=null){ const s=String(answer).padStart(3,' '); ans=[...s.slice(-3)].map(d=>`<span class="vc-d">${d.trim()}</span>`).join(''); if(String(answer).length>3) ans=`<span class="vc-d">${String(answer).slice(0,-3)}</span>`+ans; }
+  return `<div class="vc" role="img" aria-label="${a} ${opChar(op)} ${b} 的直式">
+    <div class="vc-row vc-head"><span class="vc-op"></span><span class="vc-d">百</span><span class="vc-d">十</span><span class="vc-d">一</span></div>
+    <div class="vc-row"><span class="vc-op"></span>${A.map((d,i)=>cell(d,i,a)).join('')}</div>
+    <div class="vc-row"><span class="vc-op">${op==='+'?'＋':'－'}</span>${B.map((d,i)=>cell(d,i,b)).join('')}</div>
+    <div class="vc-line"></div>
+    <div class="vc-row vc-ans"><span class="vc-op"></span>${ans}</div>
+  </div>`;
+}
+function explainVert(a,b,op){
+  const A=digits3(a),B=digits3(b),name=['百','十','個'];let carry=0,out=[];
+  const r=[0,0,0];
+  for(let i=2;i>=0;i--){
+    if(op==='+'){const s=A[i]+B[i]+carry; r[i]=s%10; out.push(`${name[i]}位 ${A[i]}＋${B[i]}${carry?'＋1':''}＝${s}${s>=10?`，寫 ${s%10} 進 1`:''}`); carry=s>=10?1:0;}
+    else {let x=A[i]-carry; let s=x-B[i]; if(s<0){out.push(`${name[i]}位 ${x} 不夠減 ${B[i]}，向前一位借 1 變成 ${x+10}，${x+10}－${B[i]}＝${s+10}`); s+=10; carry=1;} else {out.push(`${name[i]}位 ${x}－${B[i]}＝${s}${carry&&A[i]!==x?`（被借走 1 了）`:''}`); carry=0;} r[i]=s;}
+  }
+  return out.join('；')+`。答案是 ${op==='+'?a+b:a-b}。`;
+}
+function subNoDecrement(a,b){ // borrowed but forgot to reduce the next column
+  const A=digits3(a),B=digits3(b);let s='';
+  for(let i=0;i<3;i++){ s+= A[i]<B[i]? (A[i]+10-B[i]) : (A[i]-B[i]); }
+  return +s;
+}
+function vertError(a,b,op,given){
+  if(op==='+'){ if(given===noCarry(a,b)) return '忘記進位'; if(given===colConcat(a,b)) return '進位的數直接寫在一起'; }
+  else { if(given===bigMinusSmall(a,b)) return '沒有退位（每一位都大減小）'; if(given===subNoDecrement(a,b)) return '退位後忘記減 1'; }
+  return null;
+}
+function genVert(type){
+  for(let t=0;t<2000;t++){
+    const a=ri(101,989), b=ri(op(type)==='+'?101:11, op(type)==='+'?899:a-1);
+    const A=digits3(a),B=digits3(b);
+    if(op(type)==='+'){
+      const s=a+b; if(s>=1000) continue;
+      const c1=A[2]+B[2]>=10, c2=A[1]+B[1]+(c1?1:0)>=10;
+      if(type==='add0'&&!c1&&!c2) return {a,b,op:'+'};
+      if(type==='add1'&&c1&&!c2) return {a,b,op:'+'};
+      if(type==='add1t'&&!c1&&c2) return {a,b,op:'+'};
+      if(type==='add2'&&c1&&c2) return {a,b,op:'+'};
+    } else {
+      if(b<100&&type!=='sub1s') continue;
+      const b1=A[2]<B[2], b2=A[1]-(b1?1:0)<B[1];
+      if(a-b<10) continue;
+      if(type==='sub0'&&!b1&&!b2) return {a,b,op:'-'};
+      if((type==='sub1'||type==='sub1s')&&b1&&!b2) return {a,b,op:'-'};
+      if(type==='sub1t'&&!b1&&b2) return {a,b,op:'-'};
+    }
+  }
+  function op(t){return t.startsWith('add')?'+':'-';}
+}
+
+/* bar model (線段圖) */
+function barHTML(W,a,b,unknown){ // unknown: 'W' | 'a' | 'b'
+  const L=40,R=600,w=R-L, xa=L+w*a/W;
+  const lab=k=>unknown===k?'(　?　)':{W,a,b}[k];
+  return `<div class="bar-wrap"><svg viewBox="0 0 640 150" role="img" aria-label="線段圖">
+    <path d="M${L} 46 V36 H${R} V46" fill="none" stroke="var(--ink-2)" stroke-width="2"/>
+    <text x="${(L+R)/2}" y="26" text-anchor="middle" font-size="26">${lab('W')}</text>
+    <rect x="${L}" y="56" width="${xa-L}" height="34" rx="4" fill="var(--bar-a)" stroke="var(--ink)" stroke-width="2"/>
+    <rect x="${xa}" y="56" width="${R-xa}" height="34" rx="4" fill="var(--bar-b)" stroke="var(--ink)" stroke-width="2"/>
+    <path d="M${L} 100 V110 H${xa-4} V100 M${xa+4} 100 V110 H${R} V100" fill="none" stroke="var(--ink-2)" stroke-width="2"/>
+    <text x="${(L+xa)/2}" y="138" text-anchor="middle" font-size="26">${lab('a')}</text>
+    <text x="${(xa+R)/2}" y="138" text-anchor="middle" font-size="26">${lab('b')}</text>
+  </svg></div>`;
+}
+
+/* ================= NC-2-1-1 1000 以內的數 ================= */
+function genHTO(kind){
+  for(;;){
+    const h=ri(1,9),t=ri(0,9),o=ri(0,9);
+    if(kind==='t0'&&!(t===0&&o>0)) continue;
+    if(kind==='o0'&&!(o===0&&t>0)) continue;
+    if(kind==='any'&&(t===0||o===0)) continue;
+    return {h,t,o,n:h*100+t*10+o};
+  }
+}
+function genSeq(step,cross){
+  for(;;){
+    const start=ri(100,960), seq=Array.from({length:5},(_,i)=>start+i*step);
+    if(seq.some(x=>x<100||x>1000)) continue;
+    let ci=-1; for(let i=1;i<5;i++) if(Math.floor(seq[i]/100)!==Math.floor(seq[i-1]/100)) ci=i;
+    if(cross&&ci<0) continue;
+    if(!cross&&ci>=0&&Math.abs(step)<100) continue;
+    const blank=cross?ci:ri(1,4);
+    return {seq,blank,step,cross};
+  }
+}
+const G_1_1 = {
+  intro:'今天要認識 1000 以內的數：<br>數一數、做一做、接著數。',
+  note:'「數積木」看她能不能把百、十、一合起來；「做出這個數」看她聽到國字能不能做出來；「接著數」特別注意跨過整百的地方。',
+  stages:[
+    {key:'count', title:'數積木', tip:'數一數積木，和幾個小方塊一樣多？', items:()=>shuffle([genHTO('t0'),genHTO('o0'),genHTO('any'),genHTO('any'),genHTO(pick(['t0','any']))]), render:it=>{
+      playShell(`<p class="prompt">這些積木和幾個小方塊一樣多？</p>
+        <p class="muted">1 片百格板＝100 個，1 條長條＝10 個，1 個小方塊＝1 個</p>
+        ${blocksPicture(it.h,it.t,it.o)}${oneAnswerHTML('','個')}`);
+      askNum($('.play'),4,g=>{
+        const ok=g===it.n, tags=[];
+        if(!ok){
+          const noZero=+[it.h,it.t,it.o].filter(x=>x>0).join('');
+          if(g===noZero) tags.push('少寫 0（空位不會補 0）');
+          else if(g===it.h+it.t+it.o) tags.push('把積木的個數加起來');
+          else if(g===+`${it.o}${it.t}${it.h}`) tags.push('百位和個位放反');
+          else tags.push('數積木錯');
+        }
+        finishItem({q:`${it.h} 片百、${it.t} 條十、${it.o} 個一`,answer:it.n,given:g,tags},ok,`${it.h} 片百格板是 ${it.h*100}，${it.t} 條長條是 ${it.t*10}，${it.o} 個小方塊是 ${it.o}，合起來是 ${it.n}。`);
+      });
+    }},
+    {key:'build', title:'做出這個數', tip:'看到數字或國字，用積木把它做出來。', items:()=>shuffle([
+      {...genHTO('t0'),zh:true},{...genHTO('o0'),zh:true},{...genHTO('any'),zh:true},{...genHTO('t0'),zh:false},{...genHTO('any'),zh:false}
+    ]), render:it=>{
+      playShell(`<p class="prompt">用積木做出 <span class="big-inline">${it.zh?zh(it.n):it.n}</span></p>
+        <div id="bb"></div><div><button class="btn" id="done">做好了</button></div>`);
+      const B=blocksBuilder($('#bb'));
+      $('#done').addEventListener('click',()=>{
+        const c=B.get(), v=c.h*100+c.t*10+c.o; B.lock(); $('#done').disabled=true;
+        const ok=v===it.n, tags=[];
+        if(!ok){
+          if(it.t===0&&c.h===it.h&&c.t===it.o&&c.o===0) tags.push('「零」的意思不清楚');
+          else if([c.h,c.t,c.o].sort().join()===[it.h,it.t,it.o].sort().join()) tags.push('位值放錯');
+          else tags.push('做出來的數不對');
+        }
+        finishItem({q:`做出 ${it.zh?zh(it.n):it.n}`,answer:it.n,given:v,note:`她放了 ${c.h} 片、${c.t} 條、${c.o} 個`,tags},ok,`${it.zh?zh(it.n)+' 就是 '+it.n+'，':''}要放 ${it.h} 片百格板、${it.t} 條長條、${it.o} 個小方塊。${ok?'':`你做的是 ${v}。`}`);
+      });
+    }},
+    {key:'seq', title:'接著數', tip:'找出規律，把空格的數填進去。', items:()=>shuffle([genSeq(1,true),genSeq(10,true),genSeq(-10,true),genSeq(100,false),genSeq(-1,true)]), render:it=>{
+      playShell(`<p class="prompt">空格裡是多少？</p>
+        <div class="seq">${it.seq.map((x,i)=>i===it.blank?`<span class="seq-n blank">?</span>`:`<span class="seq-n">${x}</span>`).join('<span class="seq-arrow">→</span>')}</div>
+        ${oneAnswerHTML()}`);
+      askNum($('.play'),4,g=>{
+        const ans=it.seq[it.blank], ok=g===ans, tags=[];
+        if(!ok) tags.push(it.cross?'跨過整百時數錯':'看不出規律');
+        const st=Math.abs(it.step);
+        finishItem({q:it.seq.map((x,i)=>i===it.blank?'□':x).join('、'),answer:ans,given:g,tags},ok,`每次${it.step>0?'多':'少'} ${st}：${it.seq[it.blank-1]} ${it.step>0?'多':'少'} ${st} 是 ${ans}。`);
+      });
+    }},
+  ]
+};
+
+/* ================= NC-2-1-2 百位與位值換算 ================= */
+const G_1_2 = {
+  intro:'今天要練習「百位、十位、個位」：<br>每一位代表幾個百、幾個十、幾個一。',
+  note:'「換一換」裡有十個十換成一個百的題目，最能看出她是不是真的懂位值，而不是把數字照順序寫在一起。',
+  stages:[
+    {key:'board', title:'定位板', tip:'把數字放進百位、十位、個位。', items:()=>{
+      const a=genHTO('t0'),b=genHTO('o0'),c=genHTO('any'),d0=ri(1,9),d={n:d0*100+d0*10+ri(0,9)},e=genHTO('any');
+      return shuffle([a,b,c,d,e]).map(x=>({n:x.n}));
+    }, render:it=>{
+      playShell(`<p class="prompt">把 <span class="big-inline">${it.n}</span> 記在定位板上</p>
+        <div class="np"><div class="pv">${['百位','十位','個位'].map((p,i)=>`<div class="pv-col"><div class="pv-h">${p}</div><div class="pv-s">${['100','⑩','①'][i]}</div>${slotHTML(i,{aria:p})}</div>`).join('')}</div>${padHTML()}</div>`);
+      wirePad($('.play'),{max:[1,1,1]},v=>{
+        const d=digits3(it.n), ok=v.join('')===d.join(''), tags=[];
+        if(!ok) tags.push(v.join('')===d.slice().reverse().join('')?'百位和個位放反':'位名搞混');
+        finishItem({q:`${it.n} 放進定位板`,answer:d.join(' '),given:v.join(' '),tags},ok,`${it.n} 有 ${d[0]} 個百、${d[1]} 個十、${d[2]} 個一，所以百位是 ${d[0]}，十位是 ${d[1]}，個位是 ${d[2]}。`);
+      });
+    }},
+    {key:'trade', title:'換一換', tip:'幾個百、幾個十、幾個一，合起來是多少？', items:()=>{
+      const x=genHTO('any'), y=genHTO('t0'), h=ri(1,7), tt=ri(11,19), q=ri(2,8)*100+ri(1,9)*10;
+      const units=shuffle([['個百',x.h],['個十',x.t],['個一',x.o]]);
+      return shuffle([
+        {type:'scr', text:`${units.map(u=>u[1]+' '+u[0]).join('、')}，合起來是多少？`, ans:x.n, concat:+units.map(u=>u[1]).join(''), exp:`${x.h} 個百是 ${x.h*100}，${x.t} 個十是 ${x.t*10}，${x.o} 個一是 ${x.o}，合起來是 ${x.n}。`},
+        {type:'zero', text:`${y.h} 個百、0 個十和 ${y.o} 個一，合起來是多少？`, ans:y.n, concat:+`${y.h}${y.o}`, exp:`沒有十，十位要寫 0，所以是 ${y.n}。`},
+        {type:'ht', text:`${h} 個百和 ${ri(1,9)} 個十，合起來是多少？`, ans:null, h},
+        {type:'reg', text:`${h} 個百和 ${tt} 個十，合起來是多少？`, ans:h*100+tt*10, concat:+`${h}${tt}`, exp:`${tt} 個十是 ${tt*10}，裡面有 10 個十可以換成 1 個百，所以是 ${h+1} 個百和 ${tt-10} 個十，合起來是 ${h*100+tt*10}。`},
+        {type:'tens', text:`${q} 可以換成幾個十？`, ans:q/10, concat:Math.floor(q/10)%10, exp:`1 個百可以換 10 個十，${Math.floor(q/100)} 個百是 ${Math.floor(q/100)*10} 個十，再加 ${Math.floor(q/10)%10} 個十，一共是 ${q/10} 個十。`},
+      ]).map(it=>{ if(it.type==='ht'){const t=+it.text.match(/和 (\d) 個十/)[1]; it.ans=it.h*100+t*10; it.concat=+`${it.h}${t}`; it.exp=`${it.h} 個百和 ${t} 個十，個位沒有東西要寫 0，所以是 ${it.ans}。`;} return it; });
+    }, render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>${oneAnswerHTML()}`);
+      askNum($('.play'),4,g=>{
+        const ok=g===it.ans, tags=[];
+        if(!ok){
+          if(g===it.concat) tags.push(it.type==='reg'?'十個十沒有換成一個百':it.type==='tens'?'只看十位數字':'把數字照順序寫在一起');
+          else tags.push('位值換算錯');
+        }
+        finishItem({q:it.text,answer:it.ans,given:g,tags},ok,it.exp);
+      });
+    }},
+    {key:'cmp', title:'比大小', tip:'先比百位，一樣再比十位，再比個位。', items:()=>{
+      const p1=(()=>{for(;;){const a=ri(1,8)*100+ri(0,2)*10+ri(0,9), b=(Math.floor(a/100)+ri(1,2))*100+ri(0,2)*10+ri(0,9); const ga=digits3(a).reduce((x,y)=>x+y), gb=digits3(b).reduce((x,y)=>x+y); if(b<1000&&ga>gb) return [a,b];}})();
+      const a2=ri(1,9)*100, t2=ri(1,8); const p2=[a2+t2*10+ri(5,9), a2+(t2+1)*10+ri(0,4)];
+      const h3=ri(1,9)*100, d3=ri(1,9); const p3=[h3+d3, h3+d3*10];
+      const h4=ri(1,9)*100+ri(1,9)*10, o4=ri(0,8); const p4=[h4+o4, h4+o4+1];
+      const h5=ri(1,9), t5=ri(2,7), o5=ri(1,8);
+      return shuffle([
+        {type:'pick',pair:shuffle(p1),ask:pick(['大','小'])},
+        {type:'pick',pair:shuffle(p2),ask:pick(['大','小'])},
+        {type:'pick',pair:shuffle(p3),ask:'大',zero:true},
+        {type:'pick',pair:shuffle(p4),ask:'小'},
+        {type:'box',h:h5,t:t5,o:o5,other:h5*100+t5*10+o5, boxOnes:pick([0,9])}
+      ]);
+    }, render:it=>{
+      if(it.type==='pick'){
+        const want=it.ask==='大'?Math.max(...it.pair):Math.min(...it.pair);
+        playShell(`<p class="prompt">哪一個數比較${it.ask}？</p><div id="cb">${choicesHTML(it.pair)}</div>`);
+        wireChoices($('#cb'),(v,b)=>{
+          v=+v; markChoices($('#cb'),want,b);
+          const ok=v===want, tags=[];
+          if(!ok){ const sum=x=>digits3(x).reduce((p,q)=>p+q); const other=it.pair.find(x=>x!==want);
+            if(it.zero) tags.push('0 在哪一位看不懂');
+            else if((it.ask==='大'&&sum(other)>sum(want))||(it.ask==='小'&&sum(other)<sum(want))) tags.push('比數字加起來，不是先比百位');
+            else tags.push('比大小順序錯'); }
+          const [x,y]=it.pair.slice().sort((p,q)=>q-p), dx=digits3(x),dy=digits3(y);
+          const at=dx[0]!==dy[0]?'百位':dx[1]!==dy[1]?'十位':'個位';
+          finishItem({q:`${it.pair[0]} 和 ${it.pair[1]} 哪個比較${it.ask}`,answer:want,given:v,tags},ok,`從百位開始比，在${at}分出大小：${x} 比 ${y} 大，所以比較${it.ask}的是 ${want}。`);
+        });
+      } else {
+        const target=it.other, ones=it.boxOnes;
+        const valid=[...Array(10).keys()].filter(d=>it.h*100+d*10+ones<target);
+        playShell(`<p class="prompt">${it.h}□${ones} ＜ ${target}，□ 裡可以填哪些數字？<br><span class="muted">全部選出來，再按確定。</span></p>
+          <div class="digits" id="dg">${[...Array(10).keys()].map(d=>`<button type="button" class="dg" data-d="${d}" aria-pressed="false">${d}</button>`).join('')}</div>
+          <div><button class="btn" id="done">確定</button></div>`);
+        const sel=new Set();
+        document.querySelectorAll('.dg').forEach(b=>b.addEventListener('click',()=>{const d=+b.dataset.d; sel.has(d)?sel.delete(d):sel.add(d); b.classList.toggle('on',sel.has(d)); b.setAttribute('aria-pressed',sel.has(d));}));
+        $('#done').addEventListener('click',()=>{
+          $('#done').disabled=true; document.querySelectorAll('.dg').forEach(b=>{b.disabled=true; const d=+b.dataset.d; if(valid.includes(d)) b.classList.add('right'); else if(sel.has(d)) b.classList.add('wrong');});
+          const got=[...sel].sort((a,b)=>a-b), ok=got.join()===valid.join(), tags=[];
+          if(!ok){ const edge=it.t; if(got.includes(edge)!==valid.includes(edge)) tags.push('邊界的數字判斷錯'); else tags.push('沒有先比百位、再比十位'); }
+          finishItem({q:`${it.h}□${ones} ＜ ${target}`,answer:valid.join('、'),given:got.join('、')||'沒選',tags},ok,`百位都是 ${it.h}，再比十位：□ 要比 ${it.t} 小${ones>it.o?'（個位 '+ones+' 比 '+it.o+' 大，所以不能等於 '+it.t+'）':ones<it.o?'，□ 等於 '+it.t+' 時個位 '+ones+' 比 '+it.o+' 小，也可以':''}，所以可以填 ${valid.join('、')}。`);
+        });
+      }
+    }},
+  ]
+};
+
+/* ================= NC-2-2-2 三位數加減直式 ================= */
+const STORY_ADD=[
+  (a,b)=>`小泰有 ${a} 元，小展有 ${b} 元，兩個人合起來有多少元？`,
+  (a,b)=>`小泰有 ${a} 張貼紙，老師再給他 ${b} 張，小泰現在有幾張？`,
+  (a,b)=>`小樂有 ${a} 顆彈珠，小平比小樂多 ${b} 顆，小平有幾顆？`,
+];
+const STORY_SUB=[
+  (a,b)=>`桌上有 ${a} 元，大雄拿走 ${b} 元，桌上還剩下多少元？`,
+  (a,b)=>`小樂有 ${a} 顆彈珠，小平比小樂少 ${b} 顆，小平有幾顆？`,
+  (a,b)=>`小平有 ${a} 顆彈珠，比小樂多 ${b} 顆，小樂有幾顆？`,
+];
+const G_2_2 = {
+  intro:'今天要練習三位數的直式加減：<br>從個位算起，記得進位和退位。',
+  note:'「直式計算」會自動判斷錯法（忘記進位、大減小、退位後忘記減 1）；「應用題」裡有一題「比……多」卻要用減法，用來看她是不是只看關鍵字。',
+  stages:[
+    {key:'calc', title:'直式計算', tip:'從個位開始算，把答案一格一格填進去。', items:()=>shuffle(['add0','add1','add2','sub0','sub1','sub1t'].map(genVert)), render:it=>{
+      playShell(`<p class="prompt">用直式算算看：<span class="big-inline">${it.a} ${opChar(it.op)} ${it.b}</span></p>
+        <div class="np">${vertHTML(it.a,it.b,it.op)}${padHTML()}</div>
+        <p class="muted">從個位開始填，按格子可以換位置。</p>`);
+      wirePad($('.play'),{max:[1,1,1],dir:-1,start:2,ready:v=>v[2]!==''&&v[1]!==''},v=>{
+        const g=+v.join(''), ans=it.op==='+'?it.a+it.b:it.a-it.b, ok=g===ans, tags=[];
+        if(!ok) tags.push(vertError(it.a,it.b,it.op,g)||'計算錯');
+        finishItem({q:`${it.a}${it.op}${it.b}`,answer:ans,given:g,tags},ok,explainVert(it.a,it.b,it.op));
+      });
+    }},
+    {key:'check', title:'小老師改作業', tip:'同學的直式算對了嗎？算錯的話，幫他改正。', items:()=>{
+      const mk=(type,wrong)=>{const v=genVert(type);let shown=v.op==='+'?v.a+v.b:v.a-v.b,err='';
+        if(wrong){ if(v.op==='+'){shown=noCarry(v.a,v.b);err='忘記進位';} else {shown=type==='sub1'?bigMinusSmall(v.a,v.b):subNoDecrement(v.a,v.b);err=type==='sub1'?'每一位都大減小':'退位後忘記減 1';} }
+        return {...v,shown,wrong,err};};
+      return shuffle([mk('add1',true),mk('sub1',true),mk(pick(['sub1t','add1t']),pick([true,false])),mk(pick(['add0','sub0','add2']),false)]).map((x,i)=>({...x,who:['小芳','阿哲','小美','大維'][i]}));
+    }, render:it=>{
+      const ans=it.op==='+'?it.a+it.b:it.a-it.b;
+      playShell(`<div class="detective"><span class="face">${it.who.slice(-1)}</span><div><p class="muted">${it.who}的作業：</p>${vertHTML(it.a,it.b,it.op,{slots:false,answer:it.shown})}</div></div>
+        <div class="steps"><div class="step" id="d1"><span class="say">算對了嗎？</span>${choicesHTML([{v:'1',t:'對'},{v:'0',t:'不對'}],'txt')}</div>
+        <div class="step dim" id="d2" hidden><span class="say">正確答案是多少？</span>${oneAnswerHTML()}</div></div>`);
+      wireChoices($('#d1'),(v,b)=>{
+        const saysRight=v==='1'; markChoices($('#d1'),it.wrong?'0':'1',b);
+        if(saysRight){
+          const ok=!it.wrong, tags=ok?[]:['沒看出錯誤（'+it.err+'）'];
+          finishItem({q:`${it.who}：${it.a}${it.op}${it.b}=${it.shown}`,answer:it.wrong?`不對，${ans}`:'對',given:'對',wrongType:it.err,tags},ok,ok?`${it.who}算對了。${explainVert(it.a,it.b,it.op)}`:`${it.who}${it.err}了。${explainVert(it.a,it.b,it.op)}`);
+        } else {
+          const d2=$('#d2'); d2.hidden=false; enableStep(d2);
+          askNum(d2,4,g=>{
+            const ok=it.wrong&&g===ans, tags=[];
+            if(!it.wrong) tags.push('把對的當成錯的'); else if(g!==ans) tags.push('看出錯誤但改不對');
+            finishItem({q:`${it.who}：${it.a}${it.op}${it.b}=${it.shown}`,answer:it.wrong?`不對，${ans}`:'對',given:`不對，${g}`,wrongType:it.err,tags},ok,(it.wrong?`${it.who}${it.err}了。`:`${it.who}其實算對了。`)+explainVert(it.a,it.b,it.op));
+          });
+        }
+      });
+    }},
+    {key:'story', title:'生活應用', tip:'先想想要用加法還是減法，再算出答案。', items:()=>{
+      const add=genVert(pick(['add1','add0'])), add2=genVert('add1t'), sub=genVert('sub1'), trap=genVert(pick(['sub0','sub1t']));
+      return shuffle([
+        {...add,story:STORY_ADD[0](add.a,add.b),op:'+'},
+        {...add2,story:STORY_ADD[pick([1,2])](add2.a,add2.b),op:'+'},
+        {...sub,story:STORY_SUB[pick([0,1])](sub.a,sub.b),op:'-'},
+        {...trap,story:STORY_SUB[2](trap.a,trap.b),op:'-',trap:true},
+      ]);
+    }, render:it=>{
+      const ans=it.op==='+'?it.a+it.b:it.a-it.b;
+      playShell(`<p class="prompt big-text">${it.story}</p>
+        <div class="steps"><div class="step" id="s1"><span class="say">要用哪個算式？</span>${choicesHTML(shuffle([{v:'+',t:`${it.a}＋${it.b}`},{v:'-',t:`${it.a}－${it.b}`}]))}</div>
+        <div class="step dim" id="s2"><span class="say">答案是多少？</span>${oneAnswerHTML()}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      let pickedOp=null;
+      wireChoices($('#s1'),(v,b)=>{
+        pickedOp=v; markChoices($('#s1'),it.op,b); enableStep($('#s2'));
+        askNum($('#s2'),4,g=>{
+          const opOk=pickedOp===it.op, ok=opOk&&g===ans, tags=[];
+          if(!opOk) tags.push(it.trap?'看到「多」就用加法':'加減判斷錯'); else if(g!==ans) tags.push(vertError(it.a,it.b,it.op,g)||'計算錯');
+          finishItem({q:it.story,answer:`${it.a}${it.op}${it.b}=${ans}`,given:`${it.a}${pickedOp}${it.b}=${g}`,tags},ok,(it.trap?`小平比小樂多，所以小樂比小平少 ${it.b} 顆，要用減法。`:'')+`${it.a} ${opChar(it.op)} ${it.b} ＝ ${ans}。`);
+        });
+      });
+    }},
+  ]
+};
+
+/* ================= NC-2-3-1 加減互逆 ================= */
+function genPart(){ for(;;){const W=ri(40,99),a=ri(12,W-12);const b=W-a; if(b>=10&&a%10!==0&&b%10!==0) return {W,a,b};} }
+const G_3_1 = {
+  intro:'今天要練習「加減互逆」：<br>用線段圖想一想，再用加法或減法算出答案，最後驗算。',
+  note:'「應用題」裡有「剪掉……剩下……原來多少」這種要用加法的題目，用來看她是不是看到「剩下」就用減法。',
+  stages:[
+    {key:'bar', title:'線段圖', tip:'看線段圖，想一想 ( ? ) 要用什麼算式算。', items:()=>shuffle([
+      {...genPart(),u:'W'},{...genPart(),u:'a'},{...genPart(),u:'b'},{...genPart(),u:'b'},{...genPart(),u:pick(['a','W'])}
+    ]), render:it=>{
+      const known=it.u==='a'?it.b:it.a, eq=it.u==='W'?`${it.a} ＋ ${it.b} ＝ (　)`:it.u==='a'?`(　) ＋ ${it.b} ＝ ${it.W}`:`${it.a} ＋ (　) ＝ ${it.W}`;
+      const right=it.u==='W'?`${it.a}＋${it.b}`:`${it.W}－${known}`;
+      const options=it.u==='W'?[right,`${Math.max(it.a,it.b)}－${Math.min(it.a,it.b)}`]:[right,`${it.W}＋${known}`];
+      const ans=it.u==='W'?it.W:it.W-known;
+      playShell(`<p class="prompt">(　?　) 是多少？</p>${barHTML(it.W,it.a,it.b,it.u)}<p class="eq-line">${eq}</p>
+        <div class="steps"><div class="step" id="s1"><span class="say">用哪個算式算？</span>${choicesHTML(shuffle(options))}</div>
+        <div class="step dim" id="s2"><span class="say">( ? ) 是</span>${oneAnswerHTML()}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      let p=null;
+      wireChoices($('#s1'),(v,b)=>{ p=v; markChoices($('#s1'),right,b); enableStep($('#s2'));
+        askNum($('#s2'),3,g=>{
+          const eOk=p===right, ok=eOk&&g===ans, tags=[];
+          if(!eOk) tags.push(it.u==='W'?'合起來卻用減法':'看到「＋」就用加法'); else if(g!==ans) tags.push('計算錯');
+          finishItem({q:eq.replace('(　)','□'),answer:`${right}=${ans}`,given:`${p}=${g}`,tags},ok,it.u==='W'?`兩段合起來就是全部：${it.a}＋${it.b}＝${it.W}。`:`全部是 ${it.W}，拿走知道的 ${known}，剩下的就是 ( ? )：${it.W}－${known}＝${ans}。`);
+        });
+      });
+    }},
+    {key:'story', title:'應用題', tip:'先想想題目的意思，再選算式。', items:()=>{
+      const p1=genPart(),p2=genPart(),p3=genPart(),p4=genPart(),p5=genPart();
+      return shuffle([
+        {text:`妹妹有 ${p1.a} 張貼紙，姐姐也有一些貼紙，兩個人合起來有 ${p1.W} 張。姐姐有幾張？`,right:`${p1.W}－${p1.a}`,wrong:`${p1.W}＋${p1.a}`,ans:p1.b,tag:'看到「合起來」就用加法',exp:`合起來 ${p1.W} 張，拿走妹妹的 ${p1.a} 張，就是姐姐的：${p1.W}－${p1.a}＝${p1.b}。`},
+        {text:`老師有 ${p2.W} 張色紙，送給學生一些後，剩下 ${p2.b} 張。老師送給學生幾張？`,right:`${p2.W}－${p2.b}`,wrong:`${p2.W}＋${p2.b}`,ans:p2.a,tag:'加減判斷錯',exp:`${p2.W} 張拿走剩下的 ${p2.b} 張，就是送出去的：${p2.W}－${p2.b}＝${p2.a}。`},
+        {text:`有一條鐵絲，爺爺剪掉 ${p3.a} 公分後，剩下 ${p3.b} 公分。這條鐵絲原來長幾公分？`,right:`${p3.a}＋${p3.b}`,wrong:`${Math.max(p3.a,p3.b)}－${Math.min(p3.a,p3.b)}`,ans:p3.W,tag:'看到「剩下」就用減法',exp:`剪掉的和剩下的合起來，就是原來的長度：${p3.a}＋${p3.b}＝${p3.W}。`},
+        {text:`抽屜有 ${p4.W} 枝筆，${p4.a} 枝是紅筆，其他是藍筆。藍筆有幾枝？`,right:`${p4.W}－${p4.a}`,wrong:`${p4.W}＋${p4.a}`,ans:p4.b,tag:'加減判斷錯',exp:`全部 ${p4.W} 枝拿走紅筆 ${p4.a} 枝，就是藍筆：${p4.W}－${p4.a}＝${p4.b}。`},
+        {text:`哥哥有一些錢，花掉 ${p5.a} 元後，剩下 ${p5.b} 元。哥哥原來有多少元？`,right:`${p5.a}＋${p5.b}`,wrong:`${Math.max(p5.a,p5.b)}－${Math.min(p5.a,p5.b)}`,ans:p5.W,tag:'看到「剩下」就用減法',exp:`花掉的和剩下的合起來，就是原來的錢：${p5.a}＋${p5.b}＝${p5.W}。`},
+      ]);
+    }, render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>
+        <div class="steps"><div class="step" id="s1"><span class="say">用哪個算式？</span>${choicesHTML(shuffle([it.right,it.wrong]))}</div>
+        <div class="step dim" id="s2"><span class="say">答案是</span>${oneAnswerHTML()}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      let p=null;
+      wireChoices($('#s1'),(v,b)=>{ p=v; markChoices($('#s1'),it.right,b); enableStep($('#s2'));
+        askNum($('#s2'),3,g=>{
+          const eOk=p===it.right, ok=eOk&&g===it.ans, tags=[];
+          if(!eOk) tags.push(it.tag); else if(g!==it.ans) tags.push('計算錯');
+          finishItem({q:it.text,answer:`${it.right}=${it.ans}`,given:`${p}=${g}`,tags},ok,it.exp);
+        });
+      });
+    }},
+    {key:'verify', title:'驗算', tip:'同學算得對不對？用相反的算法檢查看看。', items:()=>{
+      const names=shuffle(['樂樂','恩恩','小芳','阿哲','小美']);
+      return shuffle([0,1,2,3,4].map(i=>{
+        const p=genPart(), isSub=i%2===0, right=i<3?i!==1:false;
+        if(isSub){ const shown=right?p.b:p.b+pick([10,2,-2]); return {who:names[i],claim:`${p.W}－${p.a}＝${shown}`,good:`${p.a}＋${shown}`,goodVal:p.a+shown,target:p.W,bad:`${p.W}＋${shown}`,right:shown===p.b,ans:p.b}; }
+        const shown=right?p.W:p.W+pick([-10,10,1,-1]); return {who:names[i],claim:`${p.a}＋${p.b}＝${shown}`,good:`${shown}－${p.a}`,goodVal:shown-p.a,target:p.b,bad:`${shown}＋${p.a}`,right:shown===p.W,ans:p.W};
+      }));
+    }, render:it=>{
+      playShell(`<div class="detective"><span class="face">${it.who.slice(-1)}</span><div><p class="muted">${it.who}算出：</p><p class="eq">${it.claim}</p></div></div>
+        <div class="steps"><div class="step" id="s1"><span class="say">要用哪個算式驗算？</span>${choicesHTML(shuffle([it.good,it.bad]))}</div>
+        <div class="step dim" id="s2"><span class="say">${it.who}算對了嗎？</span>${choicesHTML([{v:'1',t:'對'},{v:'0',t:'不對'}],'txt')}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      let p=null;
+      wireChoices($('#s1'),(v,b)=>{ p=v; markChoices($('#s1'),it.good,b); enableStep($('#s2'));
+        wireChoices($('#s2'),(v2,b2)=>{ markChoices($('#s2'),it.right?'1':'0',b2);
+          const vOk=p===it.good, jOk=(v2==='1')===it.right, ok=vOk&&jOk, tags=[];
+          if(!vOk) tags.push('不知道怎麼驗算'); if(!jOk) tags.push('驗算後判斷錯');
+          finishItem({q:`${it.who}：${it.claim}`,answer:`${it.good}，${it.right?'對':'不對'}`,given:`${p}，${v2==='1'?'對':'不對'}`,tags},ok,`驗算：${it.good}＝${it.goodVal}，${it.goodVal===it.target?`剛好等於 ${it.target}，所以算對了。`:`不等於 ${it.target}，所以算錯了，正確答案是 ${it.ans}。`}`);
+        });
+      });
+    }},
+  ]
+};
+
+/* ================= NC-2-5-1 錢幣 ================= */
+const SHOP=[['雨傘',365],['書包',480],['玩具車',255],['故事書',128],['球鞋',690],['水壺',230],['拼圖',545],['鉛筆盒',156],['蠟筆',85],['檯燈',720],['帽子',310],['積木',805]];
+function genWallet(){
+  for(;;){
+    const w={1000:0,500:ri(0,1),100:ri(1,4),50:ri(0,1),10:ri(0,4),5:ri(0,1),1:ri(0,4)};
+    const tot=DENOMS.reduce((a,d)=>a+d*w[d],0); const cnt=DENOMS.reduce((a,d)=>a+w[d],0);
+    if(tot<1000&&cnt>=5&&cnt<=12) return {w,tot,cnt};
+  }
+}
+const G_5_1 = {
+  intro:'今天要練習用錢：<br>數錢、付錢、換錢和找錢。',
+  note:'「付剛好的錢」畫面上不顯示總數，她要自己邊放邊數，最能看出會不會用錢。',
+  stages:[
+    {key:'count', title:'數錢', tip:'數一數，一共有多少元？', items:()=>[0,1,2,3,4].map(()=>genWallet()), render:it=>{
+      const pieces=shuffle(DENOMS.flatMap(d=>Array(it.w[d]).fill(d)));
+      playShell(`<p class="prompt">一共有多少元？</p><div class="purse">${pieces.map(moneyHTML).join('')}</div>${oneAnswerHTML('','元')}`);
+      askNum($('.play'),4,g=>{
+        const ok=g===it.tot, tags=[];
+        if(!ok) tags.push(g===it.cnt?'把張數當成錢數':'數錢錯');
+        const parts=DENOMS.filter(d=>it.w[d]).map(d=>`${it.w[d]} 個 ${d} 元是 ${d*it.w[d]} 元`);
+        finishItem({q:DENOMS.filter(d=>it.w[d]).map(d=>`${d}元×${it.w[d]}`).join('、'),answer:it.tot,given:g,tags},ok,`先數大的：${parts.join('，')}，合起來是 ${it.tot} 元。`);
+      });
+    }},
+    {key:'pay', title:'付剛好的錢', tip:'點錢放進盤子裡，剛好付出標價的錢。', items:()=>shuffle(SHOP).slice(0,5).map(([name,price])=>({name,price})), render:it=>{
+      const use=it.price>=500?[500,100,50,10,5,1]:[100,50,10,5,1];
+      playShell(`<p class="prompt">${it.name}賣 <span class="big-inline">${it.price}</span> 元，付剛好的錢。</p>
+        <div class="palette">${use.map(d=>`<button type="button" class="pal" data-d="${d}" aria-label="放一個 ${d} 元">${moneyHTML(d)}</button>`).join('')}</div>
+        <p class="muted">盤子（點盤子裡的錢可以拿回來）</p><div class="tray" id="tray" aria-live="polite"></div>
+        <div><button class="btn" id="paid" disabled>付好了</button></div>`);
+      const tray=[];
+      const paint=()=>{$('#tray').innerHTML=tray.map((d,i)=>`<button type="button" class="tray-p" data-i="${i}" aria-label="拿回 ${d} 元">${moneyHTML(d)}</button>`).join('')||'<span class="muted">還沒有放錢</span>'; $('#paid').disabled=!tray.length;
+        $('#tray').querySelectorAll('.tray-p').forEach(b=>b.addEventListener('click',()=>{tray.splice(+b.dataset.i,1);paint();}));};
+      document.querySelectorAll('.pal').forEach(b=>b.addEventListener('click',()=>{if(tray.length<40){tray.push(+b.dataset.d);paint();}}));
+      paint();
+      $('#paid').addEventListener('click',()=>{
+        $('#paid').disabled=true; document.querySelectorAll('.pal,.tray-p').forEach(b=>b.disabled=true);
+        const sum=tray.reduce((a,b)=>a+b,0), ok=sum===it.price, tags=[];
+        if(!ok) tags.push(sum>it.price?'付太多':'付太少');
+        const cnt={}; tray.forEach(d=>cnt[d]=(cnt[d]||0)+1);
+        finishItem({q:`${it.name} ${it.price} 元`,answer:it.price,given:sum,note:'她放了 '+Object.keys(cnt).sort((a,b)=>b-a).map(d=>`${d}元×${cnt[d]}`).join('、'),tags},ok,ok?`你付了剛好 ${it.price} 元。`:`你放了 ${sum} 元，${sum>it.price?'多了 '+(sum-it.price):'少了 '+(it.price-sum)} 元。${it.price} 元可以用 ${digits3(it.price)[0]} 張 100 元、${digits3(it.price)[1]} 個 10 元、${digits3(it.price)[2]} 個 1 元。`);
+      });
+    }},
+    {key:'change', title:'換錢和找錢', tip:'想一想可以換幾個，或要找回多少錢。', items:()=>{
+      const ex=shuffle([[1000,100,10],[500,100,5],[100,10,10],[50,10,5],[1000,500,2],[100,50,2]]).slice(0,2).map(([a,b,n])=>({type:'ex',a,b,ans:n}));
+      const ch=shuffle(SHOP).slice(0,3).map(([name,price])=>{const pay=price<100?100:price<500?500:1000;return {type:'ch',name,price,pay,ans:pay-price};});
+      return shuffle([...ex,...ch]);
+    }, render:it=>{
+      if(it.type==='ex'){
+        playShell(`<p class="prompt big-text">1 ${it.a>=100?'張':'個'} ${it.a} 元，可以換幾${it.b>=100?'張':'個'} ${it.b} 元？</p><div class="purse">${moneyHTML(it.a)}<span class="seq-arrow">＝</span><span class="say">？ 個 ${moneyHTML(it.b)}</span></div>${oneAnswerHTML('',it.b>=100?'張':'個')}`);
+        askNum($('.play'),3,g=>{const ok=g===it.ans;finishItem({q:`${it.a}元換幾個${it.b}元`,answer:it.ans,given:g,tags:ok?[]:['換錢錯']},ok,`${Array.from({length:it.ans},(_,i)=>(i+1)*it.b).join('、')}，數到 ${it.a}，所以可以換 ${it.ans} 個。`);});
+      } else {
+        playShell(`<p class="prompt big-text">買一個 ${it.price} 元的${it.name}，付了 ${it.pay} 元，要找回多少元？</p><div class="purse">${moneyHTML(it.pay)}</div>${oneAnswerHTML('','元')}`);
+        askNum($('.play'),4,g=>{const ok=g===it.ans, tags=[]; if(!ok) tags.push(g===it.pay+it.price?'找錢用加的':'找錢算錯');
+          finishItem({q:`付 ${it.pay} 買 ${it.price}`,answer:it.ans,given:g,tags},ok,`付的錢減掉價錢就是找回的錢：${it.pay}－${it.price}＝${it.ans}。也可以從 ${it.price} 往上數到 ${it.pay}。`);});
+      }
+    }},
+  ]
+};
+
+/* ================= NC-2-7-1 2 和 5 的乘法 ================= */
+const THINGS=[['顆','糖果','盒'],['個','輪子','輛腳踏車'],['支','筷子','雙'],['片','餅乾','包'],['隻','手指頭','隻手']];
+const G_7_1 = {
+  intro:'今天要練習 2 和 5 的乘法：<br>幾個一數、數幾次。',
+  note:'「快問快答」超過 6 秒的題目會標記，代表她可能還在用加的或數的，乘法表還不夠熟。',
+  stages:[
+    {key:'group', title:'裝盒子', tip:'一盒裝幾個、裝幾盒？做做看，再寫成乘法。', items:()=>shuffle([2,2,5,5,pick([2,5])]).map(sz=>({sz,n:ri(3,9)})), render:it=>{
+      playShell(`<p class="prompt">一盒有 <b class="num">${it.sz}</b> 顆糖果，要裝 <b class="num">${it.n}</b> 盒。先把盒子擺出來。</p>
+        <div class="boxes" id="bx"></div>
+        <div class="bb-ctl"><button type="button" class="bb-b" id="minus" aria-label="拿走一盒">－</button><button type="button" class="bb-b" id="plus" aria-label="多一盒">＋</button><button class="btn" id="done">擺好了</button></div>
+        <div class="steps"><div class="step dim" id="s2"><span class="say">寫成算式</span>${choicesHTML(shuffle([`${it.sz}×${it.n}`,`${it.sz}＋${it.n}`,`${it.sz}×${it.n+1}`]))}</div>
+        <div class="step dim" id="s3"><span class="say">一共有幾顆？</span>${oneAnswerHTML('','顆')}</div></div>`);
+      ['#s2','#s3'].forEach(s=>$(s).querySelectorAll('button').forEach(b=>b.disabled=true));
+      let k=0; const paint=()=>{$('#bx').innerHTML=Array.from({length:k},()=>`<span class="box">${'<i></i>'.repeat(it.sz)}</span>`).join('')||'<span class="muted">按 ＋ 放一盒</span>';};
+      paint();
+      $('#plus').addEventListener('click',()=>{if(k<12){k++;paint();}}); $('#minus').addEventListener('click',()=>{if(k>0){k--;paint();}});
+      $('#done').addEventListener('click',()=>{
+        ['#plus','#minus','#done'].forEach(s=>$(s).disabled=true);
+        const boxOk=k===it.n; enableStep($('#s2'));
+        wireChoices($('#s2'),(v,b)=>{ markChoices($('#s2'),`${it.sz}×${it.n}`,b); enableStep($('#s3'));
+          askNum($('#s3'),3,g=>{
+            const eOk=v===`${it.sz}×${it.n}`, ok=boxOk&&eOk&&g===it.sz*it.n, tags=[];
+            if(!boxOk) tags.push('盒數擺錯'); if(!eOk) tags.push(v.includes('＋')?'把乘法寫成加法':'乘數寫錯'); if(g!==it.sz*it.n) tags.push('乘法算錯');
+            finishItem({q:`每盒 ${it.sz} 顆，${it.n} 盒`,answer:`${it.sz}×${it.n}=${it.sz*it.n}`,given:`${v}=${g}`,note:`擺了 ${k} 盒`,tags},ok,`${it.sz} 顆一盒、${it.n} 盒，就是 ${it.n} 個 ${it.sz}：${it.sz}×${it.n}＝${it.sz*it.n}。`);
+          });
+        });
+      });
+    }},
+    {key:'more', title:'多一個、少一個', tip:'用知道的乘法，想出新的答案。', items:()=>{
+      const out=[];
+      for(const sz of shuffle([2,5,2,5,pick([2,5])])){
+        const n=ri(2,8), t=pick(['next','next2','diff']);
+        if(t==='next') out.push({text:`${sz}×${n}＝${sz*n}，那 ${sz}×${n+1}＝？`,ans:sz*(n+1),exp:`${sz}×${n+1} 比 ${sz}×${n} 多一個 ${sz}：${sz*n}＋${sz}＝${sz*(n+1)}。`});
+        else if(t==='next2'&&n<=7) out.push({text:`${sz}×${n}＝${sz*n}，那 ${sz}×${n+2}＝？`,ans:sz*(n+2),exp:`${sz}×${n+2} 比 ${sz}×${n} 多兩個 ${sz}：${sz*n}＋${sz}＋${sz}＝${sz*(n+2)}。`});
+        else out.push({text:`${sz}×${n+1} 比 ${sz}×${n} 多多少？`,ans:sz,exp:`乘數多 1，就多一個 ${sz}，所以多 ${sz}。`});
+      }
+      return out;
+    }, render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>${oneAnswerHTML()}`);
+      askNum($('.play'),3,g=>{const ok=g===it.ans;finishItem({q:it.text,answer:it.ans,given:g,tags:ok?[]:['不懂乘數多 1 就多一個被乘數']},ok,it.exp);});
+    }},
+    {key:'quick', title:'快問快答', tip:'看到題目就說出答案，越快越好。', items:()=>{
+      const facts=shuffle([...[3,4,6,7,8,9].map(n=>[2,n]),...[3,4,6,7,8,9].map(n=>[5,n])]).slice(0,6).map(([a,b])=>({a,b,miss:false}));
+      const m=[[5,ri(3,9)],[2,ri(3,9)]].map(([a,b])=>({a,b,miss:true}));
+      return shuffle([...facts,...m]);
+    }, render:it=>{
+      const q=it.miss?`${it.a} × □ ＝ ${it.a*it.b}`:`${it.a} × ${it.b} ＝ □`;
+      playShell(`<div class="timer" aria-hidden="true"><i id="bar"></i></div><div class="big-q">${q}</div>${oneAnswerHTML('□＝')}`);
+      requestAnimationFrame(()=>{const bar=$('#bar'); if(bar){bar.style.transitionDuration='6000ms';bar.style.transform='scaleX(0)';}});
+      askNum($('.play'),2,g=>{
+        const ans=it.miss?it.b:it.a*it.b, ok=g===ans, ms=performance.now()-S.t0, tags=[];
+        const bar=$('#bar'); if(bar) bar.style.transitionDuration='0ms';
+        if(!ok) tags.push('乘法表不熟'); else if(ms>6000) tags.push('超過 6 秒（可能還在數）');
+        finishItem({q:q.replace(' ＝ □','').replace('□','□'),answer:ans,given:g,tags},ok,`${it.a}×${it.b}＝${it.a*it.b}。`);
+      });
+    }},
+  ]
+};
+
+/* ================= NC-2-8-3 先加減再乘 ================= */
+function twoStepStory(kind){
+  // returns {text, first:{expr,val,wrong:[...]}, unit1, unitWrong, second:{expr,val}, ans}
+  for(;;){
+    const k=ri(2,9);
+    if(kind==='ball'){ const a=ri(1,5),b=ri(1,5),n=ri(2,9),s=a+b; if(s>9) continue;
+      return {text:`把 ${a} 個紅球和 ${b} 個白球裝成一袋，${n} 袋共有多少個球？`, f:`${a}＋${b}`, fv:s, fw:[`${a}×${n}`,`${b}×${n}`], u1:`${s} 個球（一袋）`, u1w:`${s} 袋`, s:`${s}×${n}`, ans:s*n, why:`先算一袋有幾個球：${a}＋${b}＝${s}，再算 ${n} 袋：${s}×${n}＝${s*n}。`}; }
+    if(kind==='plate'){ const a=ri(1,5),b=ri(1,5),s=a+b; if(s>9) continue;
+      return {text:`一盤草莓有 ${k} 顆，媽媽吃 ${a} 盤，爸爸吃 ${b} 盤，兩個人共吃了多少顆草莓？`, f:`${a}＋${b}`, fv:s, fw:[`${k}×${a}`,`${k}＋${a}`], u1:`${s} 盤`, u1w:`${s} 顆`, s:`${k}×${s}`, ans:k*s, why:`先算兩個人吃了幾盤：${a}＋${b}＝${s} 盤，再算幾顆：${k}×${s}＝${k*s}。`}; }
+    if(kind==='pack'){ const a=ri(1,5),b=ri(1,5),s=a+b; if(s>9) continue;
+      return {text:`一包貼紙有 ${k} 張，樂樂買了 ${a} 包，媽媽又送他 ${b} 包，樂樂共有多少張貼紙？`, f:`${a}＋${b}`, fv:s, fw:[`${k}×${a}`,`${k}＋${b}`], u1:`${s} 包`, u1w:`${s} 張`, s:`${k}×${s}`, ans:k*s, why:`先算共有幾包：${a}＋${b}＝${s} 包，再算幾張：${k}×${s}＝${k*s}。`}; }
+    if(kind==='sale'){ const p=ri(6,10),d=ri(1,4),n=ri(2,9),s=p-d;
+      return {text:`一瓶果汁 ${p} 元，特價期間每一瓶便宜 ${d} 元。外婆買了 ${n} 瓶，共要付多少元？`, f:`${p}－${d}`, fv:s, fw:[`${p}×${n}`,`${d}×${n}`], u1:`一瓶 ${s} 元`, u1w:`${s} 瓶`, s:`${s}×${n}`, ans:s*n, why:`先算特價一瓶多少元：${p}－${d}＝${s}，再算 ${n} 瓶：${s}×${n}＝${s*n}。`}; }
+    if(kind==='left'){ const a=ri(5,9),b=ri(1,a-2),s=a-b;
+      return {text:`一袋柳丁有 ${k} 顆，媽媽買了 ${a} 袋，送給阿姨 ${b} 袋，還剩下多少顆柳丁？`, f:`${a}－${b}`, fv:s, fw:[`${k}×${a}`,`${k}－${b}`], u1:`${s} 袋`, u1w:`${s} 顆`, s:`${k}×${s}`, ans:k*s, why:`先算剩下幾袋：${a}－${b}＝${s} 袋，再算幾顆：${k}×${s}＝${k*s}。`}; }
+    if(kind==='save'){ const p=ri(6,10),q=ri(2,p-1),n=ri(2,9),s=p-q; if(s>5) continue;
+      return {text:`一包色紙原價 ${p} 元，現在特價 ${q} 元。老師買了 ${n} 包，共便宜多少元？`, f:`${p}－${q}`, fv:s, fw:[`${q}×${n}`,`${p}×${n}`], u1:`一包便宜 ${s} 元`, u1w:`${s} 包`, s:`${s}×${n}`, ans:s*n, why:`先算一包便宜多少：${p}－${q}＝${s} 元，再算 ${n} 包：${s}×${n}＝${s*n}。`}; }
+  }
+}
+const G_8_3 = {
+  intro:'今天要練習兩步驟的問題：<br>先想好「先算什麼、再算什麼」。',
+  note:'「先算什麼」第一步選錯，代表她不知道要先把同一袋（同一盤）合起來；「這個數是什麼」看她分不分得清先算出來的是盤數還是顆數。',
+  stages:[
+    {key:'steps', title:'先算什麼', tip:'先選第一步的算式，再一步一步算出答案。', items:()=>shuffle(['ball','plate','sale','left','pack']).map(twoStepStory), render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>
+        <div class="steps"><div class="step" id="s1"><span class="say">先算</span>${choicesHTML(shuffle([it.f,...it.fw]))}</div>
+        <div class="step dim" id="s2"><span class="say">先算的答案</span>${oneAnswerHTML()}</div>
+        <div class="step dim" id="s3"><span class="say">最後答案</span>${oneAnswerHTML()}</div></div>`);
+      ['#s2','#s3'].forEach(s=>$(s).querySelectorAll('button').forEach(b=>b.disabled=true));
+      let p1=null,g1=null;
+      wireChoices($('#s1'),(v,b)=>{ p1=v; markChoices($('#s1'),it.f,b); enableStep($('#s2'));
+        askNum($('#s2'),2,g=>{ g1=g; enableStep($('#s3'));
+          askNum($('#s3'),3,g2=>{
+            const ok=p1===it.f&&g1===it.fv&&g2===it.ans, tags=[];
+            if(p1!==it.f) tags.push('不知道要先算什麼'); else if(g1!==it.fv) tags.push('第一步算錯');
+            if(g2!==it.ans) tags.push(g2===it.fv?'只算了第一步':'第二步算錯');
+            finishItem({q:it.text,answer:`${it.f}=${it.fv}，${it.s}=${it.ans}`,given:`${p1}=${g1}，${g2}`,tags},ok,it.why);
+          });
+        });
+      });
+    }},
+    {key:'unit', title:'這個數是什麼', tip:'先算出來的數，是幾盤？還是幾顆？想清楚再算。', items:()=>shuffle(['plate','left','pack','sale']).map(twoStepStory), render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>
+        <div class="steps"><div class="step" id="s1"><span class="say">先算 ${it.f}＝${it.fv}，<br>這個 ${it.fv} 是</span>${choicesHTML(shuffle([it.u1,it.u1w]),'txt')}</div>
+        <div class="step dim" id="s2"><span class="say">再算 ${it.s}，答案是</span>${oneAnswerHTML()}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      let u=null;
+      wireChoices($('#s1'),(v,b)=>{ u=v; markChoices($('#s1'),it.u1,b); enableStep($('#s2'));
+        askNum($('#s2'),3,g=>{
+          const ok=u===it.u1&&g===it.ans, tags=[];
+          if(u!==it.u1) tags.push('分不清先算出來的是什麼（單位）'); if(g!==it.ans) tags.push('第二步算錯');
+          finishItem({q:it.text,answer:`${it.u1}，${it.ans}`,given:`${u}，${g}`,tags},ok,it.why);
+        });
+      });
+    }},
+    {key:'match', title:'算式配故事', tip:'看兩個算式，找出說的是哪一個故事。', items:()=>{
+      return [0,1,2,3].map(()=>{
+        const kinds=shuffle(['ball','plate','sale','left','pack','save']);
+        const A=twoStepStory(kinds[0]);
+        // distractor: same numbers but the order reversed (multiply first, then add/subtract)
+        const nums=A.f.split(/[＋－]/).map(Number), op=A.f.includes('＋')?'＋':'－', parts=A.s.split('×').map(Number), m=parts[0]===A.fv?parts[1]:parts[0];
+        const B={text:op==='＋'?`一盒有 ${nums[0]} 顆糖，買了 ${m} 盒，又多拿到 ${nums[1]} 顆，共有幾顆？`:`一盒有 ${nums[0]} 顆糖，買了 ${m} 盒，吃掉 ${nums[1]} 顆，還剩幾顆？`};
+        return {A,B,pos:pick([0,1])};
+      });
+    }, render:it=>{
+      const stories=it.pos===0?[it.A.text,it.B.text]:[it.B.text,it.A.text];
+      playShell(`<p class="prompt">先算 <b class="num">${it.A.f}＝${it.A.fv}</b>，再算 <b class="num">${it.A.s}＝${it.A.ans}</b>。<br>這是哪一個故事的算法？</p>
+        <div id="cb"><div class="choices col">${stories.map((t,i)=>`<button class="choice txt story" data-v="${i}">${t}</button>`).join('')}</div></div>`);
+      wireChoices($('#cb'),(v,b)=>{ markChoices($('#cb'),String(it.pos),b);
+        const ok=+v===it.pos;
+        finishItem({q:`${it.A.f}，${it.A.s}`,answer:it.A.text,given:stories[+v],tags:ok?[]:['先算、後算的順序看不懂']},ok,`這個算法是先把「${it.A.f}」合起來（或減掉），再乘。另一個故事要先乘，再加或減，順序不一樣。`);
+      });
+    }},
+  ]
+};
+
+/* ================= NC-2-13-1 看時鐘 ================= */
+function clockSVG(h,m,{interactive=false}={}){
+  const C=160, ticks=[];
+  for(let i=0;i<60;i++){ const a=i*6*Math.PI/180, big=i%5===0, r1=big?126:132, r2=140;
+    ticks.push(`<line x1="${C+r1*Math.sin(a)}" y1="${C-r1*Math.cos(a)}" x2="${C+r2*Math.sin(a)}" y2="${C-r2*Math.cos(a)}" stroke="var(--ink)" stroke-width="${big?3:1.4}"/>`); }
+  const nums=Array.from({length:12},(_,i)=>{const n=i+1,a=n*30*Math.PI/180;return `<text x="${C+106*Math.sin(a)}" y="${C-106*Math.cos(a)+9}" text-anchor="middle" font-size="26">${n}</text>`}).join('');
+  const ha=((h%12)+m/60)*30, ma=m*6;
+  return `<div class="clock-wrap"><svg class="clock" id="clk" viewBox="0 0 320 320" role="img" aria-label="時鐘">
+    <circle cx="${C}" cy="${C}" r="148" fill="var(--surface)" stroke="var(--ink)" stroke-width="5"/>
+    ${ticks.join('')}${nums}
+    <g id="hh" transform="rotate(${interactive?0:ha} ${C} ${C})"><line x1="${C}" y1="${C+12}" x2="${C}" y2="${C-72}" stroke="var(--ink)" stroke-width="11" stroke-linecap="round"/></g>
+    <g id="mh" transform="rotate(${interactive?0:ma} ${C} ${C})"><line x1="${C}" y1="${C+16}" x2="${C}" y2="${C-118}" stroke="var(--line-s)" stroke-width="6" stroke-linecap="round"/></g>
+    <circle cx="${C}" cy="${C}" r="8" fill="var(--ink)"/>
+  </svg></div>`;
+}
+const clockTime=()=>{ for(;;){ const h=ri(1,12), m=pick([0,ri(1,59),pick([15,30,45,50,55]),ri(31,59)]); return {h,m}; } };
+const pad2=n=>String(n).padStart(2,'0');
+function readClockTags(it,gh,gm){
+  const tags=[];
+  if(gh===it.h%12+1&&it.m>=30&&gm===it.m) tags.push('時針快到下一個數字，就讀成下一點');
+  else if(gh!==it.h) tags.push('時針讀錯');
+  if(gm!==it.m){
+    const pointed=Math.round(it.m/5)%12||12;
+    if(gm===pointed) tags.push('分針沒有 5 分、5 分數（直接讀數字）');
+    else if(gh===Math.round(it.m/5)%12||gm===it.h*5%60) tags.push('長針、短針搞混');
+    else tags.push('分鐘數錯');
+  }
+  return tags;
+}
+const G_13_1 = {
+  intro:'今天要練習看時鐘：<br>短針是時針，長針是分針。',
+  note:'「撥時鐘」會檢查時針有沒有跟著分針走到兩個數字之間；「讀時鐘」常見的錯是 2 點 50 分讀成 3 點 50 分。',
+  stages:[
+    {key:'read', title:'讀時鐘', tip:'看短針和長針，說出是幾點幾分。', items:()=>shuffle([{h:ri(1,12),m:0},{h:ri(1,11),m:pick([50,55,45])},{h:ri(1,12),m:ri(31,44)},{h:ri(1,12),m:pick([15,20,25])},{h:ri(1,12),m:ri(1,14)},{h:ri(1,11),m:ri(46,59)}]), render:it=>{
+      playShell(`<p class="prompt">時鐘上是幾點幾分？</p>${clockSVG(it.h,it.m)}
+        <div class="np"><div class="np-slots">${slotHTML(0,{post:'點',aria:'幾點'})}${slotHTML(1,{post:'分',aria:'幾分'})}</div>${padHTML()}</div>`);
+      wirePad($('.play'),{max:[2,2]},v=>{
+        const gh=+v[0],gm=+v[1], ok=gh===it.h&&gm===it.m;
+        finishItem({q:`${it.h}:${pad2(it.m)} 的鐘面`,answer:`${it.h} 點 ${it.m} 分`,given:`${gh} 點 ${gm} 分`,tags:ok?[]:readClockTags(it,gh,gm)},ok,
+          `短針在 ${it.m===0?`數字 ${it.h}`:`${it.h} 和 ${it.h%12+1} 之間`}，是 ${it.h} 點；長針${it.m%5===0?`在數字 ${it.m/5||12}，5 分、5 分數是 ${it.m} 分`:`先數大格 ${Math.floor(it.m/5)*5} 分，再數 ${it.m%5} 小格，是 ${it.m} 分`}。`);
+      });
+    }},
+    {key:'set', title:'撥時鐘', tip:'先選要撥長針還是短針，再在鐘面上撥到正確的位置。', items:()=>shuffle([{h:ri(1,11),m:pick([30,40,45,50])},{h:ri(1,12),m:pick([10,15,20])},{h:ri(1,12),m:0},{h:ri(1,11),m:ri(31,59)},{h:ri(1,12),m:ri(1,29)}]), render:it=>{
+      playShell(`<p class="prompt">把時鐘撥到 <span class="big-inline">${it.h} 點 ${it.m} 分</span></p>
+        <div class="hand-pick" role="group" aria-label="選擇指針"><button type="button" class="hp on" data-h="mh">撥長針（分針）</button><button type="button" class="hp" data-h="hh">撥短針（時針）</button></div>
+        ${clockSVG(0,0,{interactive:true})}<div><button class="btn" id="done">撥好了</button></div>`);
+      const svg=$('#clk'), ang={hh:0,mh:0}; let sel='mh', drag=false;
+      const setA=(k,a)=>{ ang[k]=a; $('#'+k).setAttribute('transform',`rotate(${a} 160 160)`); };
+      document.querySelectorAll('.hp').forEach(b=>b.addEventListener('click',()=>{sel=b.dataset.h;document.querySelectorAll('.hp').forEach(x=>x.classList.toggle('on',x===b));}));
+      const toA=e=>{const pt=svg.createSVGPoint();pt.x=e.clientX;pt.y=e.clientY;const q=pt.matrixTransform(svg.getScreenCTM().inverse());let a=Math.atan2(q.x-160,160-q.y)*180/Math.PI;if(a<0)a+=360;return a;};
+      const move=e=>{let a=toA(e); if(sel==='mh') a=Math.round(a/6)*6%360; else a=Math.round(a)%360; setA(sel,a);};
+      svg.addEventListener('pointerdown',e=>{drag=true;svg.setPointerCapture(e.pointerId);move(e);});
+      svg.addEventListener('pointermove',e=>{if(drag)move(e);});
+      svg.addEventListener('pointerup',()=>drag=false); svg.addEventListener('pointercancel',()=>drag=false);
+      $('#done').addEventListener('click',()=>{
+        $('#done').disabled=true; svg.style.pointerEvents='none'; document.querySelectorAll('.hp').forEach(b=>b.disabled=true);
+        const gm=Math.round(ang.mh/6)%60, wantH=((it.h%12)+it.m/60)*30;
+        let dh=Math.abs(ang.hh-wantH)%360; if(dh>180) dh=360-dh;
+        const mOk=gm===it.m, hOk=dh<=10, tags=[];
+        if(!mOk) tags.push(Math.round(ang.mh/30)%12===Math.round(it.m)%12&&it.m<12?'把分鐘數當成數字撥':'分針撥錯');
+        if(!hOk){ const atNum=Math.abs(ang.hh-(it.h%12)*30)<4; tags.push(atNum&&it.m>=20?'時針沒有跟著分針往前走':'時針撥錯'); }
+        const ok=mOk&&hOk;
+        setA('hh',wantH); setA('mh',it.m*6);
+        const shownH=Math.round(ang.hh/30)%12||12;
+        finishItem({q:`撥到 ${it.h}:${pad2(it.m)}`,answer:`${it.h} 點 ${it.m} 分`,given:`分針 ${gm} 分、時針靠近 ${shownH}`,tags},ok,`分針要指在 ${it.m} 分的位置；${it.m===0?`時針剛好指在 ${it.h}`:`時針要在 ${it.h} 和 ${it.h%12+1} 中間${it.m>=30?'，已經過了一半，比較靠近 '+(it.h%12+1):''}`}。正確的位置已經畫在時鐘上。`);
+      });
+    }},
+    {key:'more', title:'數字鐘和經過時間', tip:'看數字鐘，或想一想時間過了多久。', items:()=>{
+      const d1={type:'digi',h:ri(1,12),m:ri(1,9)}, d2={type:'digi',h:ri(1,12),m:ri(10,59)};
+      const s=ri(9,11), add=ri(1,3);
+      return shuffle([d1,d2,
+        {type:'later',h:s,add,ans:(s+add-1)%12+1},
+        {type:'big',n:ri(2,9)},
+        {type:'turn',h:ri(1,11),n:ri(2,9)},
+      ]);
+    }, render:it=>{
+      if(it.type==='digi'){
+        playShell(`<p class="prompt">數字鐘是幾點幾分？</p><div class="digi" aria-label="數字鐘">${it.h}:${pad2(it.m)}</div>
+          <div class="np"><div class="np-slots">${slotHTML(0,{post:'點'})}${slotHTML(1,{post:'分'})}</div>${padHTML()}</div>`);
+        wirePad($('.play'),{max:[2,2]},v=>{ const gh=+v[0],gm=+v[1],ok=gh===it.h&&gm===it.m,tags=[];
+          if(!ok) tags.push(it.m<10&&gm===it.m*10?`把 :0${it.m} 讀成 ${it.m*10} 分`:'數字鐘讀錯');
+          finishItem({q:`${it.h}:${pad2(it.m)}`,answer:`${it.h} 點 ${it.m} 分`,given:`${gh} 點 ${gm} 分`,tags},ok,`冒號前面的 ${it.h} 是 ${it.h} 點，後面的 ${pad2(it.m)} 是 ${it.m} 分。`); });
+      } else if(it.type==='later'){
+        playShell(`<p class="prompt big-text">現在是 ${it.h} 點，再過 ${it.add} 小時是幾點？</p>${clockSVG(it.h,0)}${oneAnswerHTML('','點')}`);
+        askNum($('.play'),2,g=>{const ok=g===it.ans;finishItem({q:`${it.h} 點再過 ${it.add} 小時`,answer:it.ans,given:g,tags:ok?[]:[it.h+it.add>12&&g===it.h+it.add?'過了 12 點不會從 1 點開始數':'經過時間算錯']},ok,`1 小時時針走 1 大格，${it.h} 點往後走 ${it.add} 大格，是 ${it.ans} 點。`);});
+      } else if(it.type==='big'){
+        playShell(`<p class="prompt big-text">分針走了 ${it.n} 大格，是幾分鐘？</p>${oneAnswerHTML('','分鐘')}`);
+        askNum($('.play'),2,g=>{const ok=g===it.n*5;finishItem({q:`分針走 ${it.n} 大格`,answer:it.n*5,given:g,tags:ok?[]:[g===it.n?'不知道 1 大格是 5 分鐘':'大格換分鐘算錯']},ok,`分針走 1 大格是 5 分鐘，${it.n} 大格是 ${Array.from({length:it.n},(_,i)=>(i+1)*5).join('、')}，${it.n*5} 分鐘。`);});
+      } else {
+        playShell(`<p class="prompt big-text">現在是 ${it.h} 點，分針轉了 ${it.n} 大格後，是幾點幾分？</p>${clockSVG(it.h,0)}
+          <div class="np"><div class="np-slots">${slotHTML(0,{post:'點'})}${slotHTML(1,{post:'分'})}</div>${padHTML()}</div>`);
+        wirePad($('.play'),{max:[2,2]},v=>{const gh=+v[0],gm=+v[1],ok=gh===it.h&&gm===it.n*5;
+          finishItem({q:`${it.h} 點，分針轉 ${it.n} 大格`,answer:`${it.h} 點 ${it.n*5} 分`,given:`${gh} 點 ${gm} 分`,tags:ok?[]:[gm===it.n?'不知道 1 大格是 5 分鐘':gh!==it.h?'以為時針也走了好幾格':'分鐘算錯']},ok,`分針轉 ${it.n} 大格是 ${it.n*5} 分鐘，時針還在 ${it.h} 附近，所以是 ${it.h} 點 ${it.n*5} 分。`);});
+      }
+    }},
+  ]
+};
+
+/* ================= SC-2-4-2 周長 ================= */
+// shapes on a grid: points in grid units, edges [i,j,boundary]
+const EDGE_SHAPES=[
+  {name:'長方形', pts:[[0,0],[6,0],[6,4],[0,4]], edges:[[0,1,1],[1,2,1],[2,3,1],[3,0,1],[0,2,0]]},
+  {name:'L 形', pts:[[0,0],[3,0],[3,2],[6,2],[6,5],[0,5],[3,5]], edges:[[0,1,1],[1,2,1],[2,3,1],[3,4,1],[4,6,1],[6,5,1],[5,0,1],[2,6,0]]},
+  {name:'三角形', pts:[[3,0],[6,5],[0,5],[3,5]], edges:[[0,1,1],[1,3,1],[3,2,1],[2,0,1],[0,3,0]]},
+  {name:'房子', pts:[[0,2],[3,0],[6,2],[6,6],[0,6]], edges:[[0,1,1],[1,2,1],[2,3,1],[3,4,1],[4,0,1],[0,2,0]]},
+];
+function edgeSVG(sh,{sel=new Set(),reveal=false}={}){
+  const S=48, P=24, X=x=>P+x*S, Y=y=>P+y*S;
+  const maxX=Math.max(...sh.pts.map(p=>p[0])), maxY=Math.max(...sh.pts.map(p=>p[1]));
+  const lines=sh.edges.map(([a,b,bd],i)=>{const [x1,y1]=sh.pts[a],[x2,y2]=sh.pts[b];
+    const cls=reveal?(bd?(sel.has(i)?'e-ok':'e-miss'):(sel.has(i)?'e-bad':'')):(sel.has(i)?'e-on':'');
+    return `<g class="edge ${cls}" data-e="${i}"><line class="e-hit" x1="${X(x1)}" y1="${Y(y1)}" x2="${X(x2)}" y2="${Y(y2)}"/><line class="e-vis" x1="${X(x1)}" y1="${Y(y1)}" x2="${X(x2)}" y2="${Y(y2)}"/></g>`;}).join('');
+  return `<svg class="edge-svg" viewBox="0 0 ${X(maxX)+P} ${Y(maxY)+P}" role="img" aria-label="${sh.name}">${lines}</svg>`;
+}
+function figSVG(f){ // labelled figure for perimeter
+  const S=40,P=84;
+  const X=x=>P+x*S, Y=y=>P+y*S, pts=f.pts, maxX=Math.max(...pts.map(p=>p[0])), maxY=Math.max(...pts.map(p=>p[1]));
+  const poly=`<polygon points="${pts.map(([x,y])=>X(x)+','+Y(y)).join(' ')}" fill="var(--fig)" stroke="var(--ink)" stroke-width="3"/>`;
+  const cx=pts.reduce((a,p)=>a+p[0],0)/pts.length, cy=pts.reduce((a,p)=>a+p[1],0)/pts.length;
+  const labs=(f.labels||[]).map(([i,t])=>{const [x1,y1]=pts[i],[x2,y2]=pts[(i+1)%pts.length];let mx=(x1+x2)/2,my=(y1+y2)/2;const ex=x2-x1,ey=y2-y1,L=Math.hypot(ex,ey)||1;const nx=ey/L,ny=-ex/L, side=Math.abs(nx)>0.3, anc=side?(nx>0?'start':'end'):'middle';mx+=nx*(side?0.3:0.5);my+=ny*(side?0.3:0.5);
+    return `<text x="${X(mx)}" y="${Y(my)+7}" text-anchor="${anc}" font-size="22">${t}</text>`;}).join('');
+  return `<div class="fig-wrap"><svg viewBox="0 0 ${X(maxX)+P} ${Y(maxY)+P}" role="img" aria-label="${f.name}">${poly}${labs}</svg></div>`;
+}
+function gridRectSVG(w,h,lshape){
+  const S=30,P=16, cols=lshape?w+0:w, X=x=>P+x*S, Y=y=>P+y*S;
+  let dots=''; for(let x=0;x<=w+1;x++) for(let y=0;y<=h+1;y++) dots+=`<circle cx="${X(x)}" cy="${Y(y)}" r="2.5" fill="var(--ink-2)"/>`;
+  const pts=lshape?[[0,0],[lshape,0],[lshape,lshape],[w,lshape],[w,h],[0,h]]:[[0,0],[w,0],[w,h],[0,h]];
+  return `<div class="fig-wrap"><svg viewBox="0 0 ${X(w+1)+P} ${Y(h+1)+P}" role="img" aria-label="方格紙上的圖形">${dots}<polygon points="${pts.map(([x,y])=>X(x)+','+Y(y)).join(' ')}" fill="var(--fig)" fill-opacity=".6" stroke="var(--ink)" stroke-width="3"/></svg></div>`;
+}
+const G_4_2s = {
+  intro:'今天要練習「周長」：<br>圖形外面一圈的長度。',
+  note:'「描周界」看她會不會把圖形裡面的線也算進去；「算周長」裡長方形、正方形只標一部分的邊，看她知不知道對邊一樣長。',
+  stages:[
+    {key:'trace', title:'描周界', tip:'點一點圖形外圍的每一條邊（裡面的線不要點），再按確定。', items:()=>shuffle(EDGE_SHAPES).map(s=>({sh:s})), render:it=>{
+      const sel=new Set();
+      const draw=()=>{$('#es').innerHTML=edgeSVG(it.sh,{sel}); $('#es').querySelectorAll('.edge').forEach(g=>g.addEventListener('click',()=>{const i=+g.dataset.e;sel.has(i)?sel.delete(i):sel.add(i);draw();}));};
+      playShell(`<p class="prompt">點出這個${it.sh.name}的「周界」（外面一圈的邊）。</p><div id="es" class="es-wrap"></div><div><button class="btn" id="done">確定</button></div>`);
+      draw();
+      $('#done').addEventListener('click',()=>{
+        $('#done').disabled=true; $('#es').innerHTML=edgeSVG(it.sh,{sel,reveal:true});
+        const bd=it.sh.edges.map((e,i)=>e[2]?i:-1).filter(i=>i>=0), inner=it.sh.edges.map((e,i)=>e[2]?-1:i).filter(i=>i>=0);
+        const miss=bd.filter(i=>!sel.has(i)).length, extra=inner.filter(i=>sel.has(i)).length, ok=!miss&&!extra, tags=[];
+        if(extra) tags.push('把裡面的線也算成周界'); if(miss) tags.push('漏掉外圍的邊');
+        finishItem({q:`${it.sh.name}的周界`,answer:`外圍 ${bd.length} 條邊`,given:`選了 ${sel.size} 條（漏 ${miss}、多 ${extra}）`,tags},ok,`周界是圖形最外面一圈。綠色是周界，${extra?'紅色那條在圖形裡面，不是周界。':''}${miss?'虛線是漏掉的邊。':''}`);
+      });
+    }},
+    {key:'calc', title:'算周長', tip:'把一圈的邊長全部加起來。沒寫數字的邊，想想看和哪一邊一樣長。', items:()=>{
+      const a=ri(3,9),b=ri(3,9),c=ri(3,9); const w=ri(4,9),h=ri(2,w-1),sq=ri(3,9),eq=ri(3,9);
+      const L1=ri(5,8),L2=ri(2,L1-2),H1=ri(4,6),H2=ri(2,H1-2);
+      return shuffle([
+        {name:'三角形',pts:[[2,0],[5,4],[0,4]],labels:[[0,`${a} 公分`],[1,`${b} 公分`],[2,`${c} 公分`]],ans:a+b+c,partial:null,note:''},
+        {name:'長方形',pts:[[0,0],[w,0],[w,h],[0,h]],labels:[[0,`${w} 公分`],[1,`${h} 公分`]],ans:2*(w+h),partial:w+h,note:'長方形'},
+        {name:'正方形',pts:[[0,0],[4,0],[4,4],[0,4]],labels:[[0,`${sq} 公分`]],ans:4*sq,partial:sq,note:'正方形'},
+        {name:'正三角形',pts:[[2.5,0],[5,4.3],[0,4.3]],labels:[[1,`${eq} 公分`]],ans:3*eq,partial:eq,note:'正三角形'},
+        {name:'L 形',pts:[[0,0],[L2,0],[L2,H1-H2],[L1,H1-H2],[L1,H1],[0,H1]],labels:[[0,`${L2}`],[1,`${H1-H2}`],[2,`${L1-L2}`],[3,`${H2}`],[4,`${L1}`],[5,`${H1}`]],ans:2*(L1+H1),partial:null,note:'',unit:'（單位：公分）'},
+      ]);
+    }, render:it=>{
+      playShell(`<p class="prompt">這個${it.name}的周長是幾公分？${it.unit?`<span class="muted">${it.unit}</span>`:''}</p>${figSVG(it)}${oneAnswerHTML('','公分')}`);
+      askNum($('.play'),3,g=>{
+        const ok=g===it.ans, tags=[];
+        if(!ok){ if(it.partial!=null&&g===it.partial) tags.push(it.note==='長方形'?'只加了標出來的兩個邊':'只算了一個邊'); else if(it.note==='正方形'&&g===it.partial*2) tags.push('正方形只加了兩個邊'); else tags.push('周長算錯'); }
+        const exp=it.note==='長方形'?`長方形上下一樣長、左右一樣長：${it.labels[0][1].split(' ')[0]}＋${it.labels[1][1].split(' ')[0]}＋${it.labels[0][1].split(' ')[0]}＋${it.labels[1][1].split(' ')[0]}＝${it.ans}。`
+          :it.note==='正方形'?`正方形 4 個邊一樣長：${it.partial}×4＝${it.ans}。`
+          :it.note==='正三角形'?`正三角形 3 個邊一樣長：${it.partial}×3＝${it.ans}。`
+          :`把一圈的邊全部加起來，一共是 ${it.ans} 公分。`;
+        finishItem({q:`${it.name}周長`,answer:it.ans,given:g,tags},ok,exp);
+      });
+    }},
+    {key:'grid', title:'方格紙上的周長', tip:'每一小格的邊長是 1 公分，數一數外面一圈有多長。', items:()=>{
+      const out=[]; for(let i=0;i<3;i++){const w=ri(2,6),h=ri(2,4);out.push({w,h,l:0,ans:2*(w+h),area:w*h});}
+      const w=ri(4,6),h=ri(3,4),l=2; out.push({w,h,l,ans:2*(w+h),area:w*h-(w-l)*l});
+      return shuffle(out);
+    }, render:it=>{
+      playShell(`<p class="prompt">每一小格的邊長是 1 公分，這個圖形的周長是幾公分？</p>${gridRectSVG(it.w,it.h,it.l)}${oneAnswerHTML('','公分')}`);
+      askNum($('.play'),2,g=>{const ok=g===it.ans, tags=[]; if(!ok) tags.push(g===it.area?'數成裡面的格子數（面積）':'數周長數錯');
+        finishItem({q:`${it.l?'L 形':'長方形'} ${it.w}×${it.h} 格`,answer:it.ans,given:g,tags},ok,it.l?`沿著外圍一格一格數，一共 ${it.ans} 公分（L 形的周長和同樣大的長方形一樣）。`:`上下各 ${it.w} 公分、左右各 ${it.h} 公分：${it.w}＋${it.h}＋${it.w}＋${it.h}＝${it.ans}。`);});
+    }},
+  ]
+};
+
+/* ================= NC-2-12-1 容量 ================= */
+function cupSVG(c,label){ // c:{w,h,lv} in px-ish units; lv 0..1 water fraction of height
+  const W=c.w, H=c.h, x=(140-W)/2, y=200-H, wy=y+H*(1-c.lv);
+  return `<svg viewBox="0 0 140 230" class="cup" role="img" aria-label="${label}">
+    <rect x="${x}" y="${wy}" width="${W}" height="${200-wy}" fill="var(--water)"/>
+    <path d="M${x} ${y} V200 H${x+W} V${y}" fill="none" stroke="var(--ink)" stroke-width="4"/>
+    <text x="70" y="225" text-anchor="middle" font-size="22">${label}</text></svg>`;
+}
+const smallCups=(n,big)=>`<span class="scups">${Array.from({length:n},()=>`<span class="scup ${big?'big':''}"></span>`).join('')}</span>`;
+const G_12_1 = {
+  intro:'今天要練習比「容量」：<br>哪一個裝的水比較多？',
+  note:'「哪杯比較多」裡有一題杯子不一樣、水面也不一樣高，看她會不會只看水面高低；「用小杯子量」裡有一題兩邊用的杯子大小不同，看她懂不懂要用一樣的單位才能比。',
+  stages:[
+    {key:'look', title:'哪杯比較多', tip:'看清楚杯子和水面，想一想怎麼比。', items:()=>shuffle([
+      {type:'same',a:{w:70,h:150,lv:ri(3,5)/10},b:{w:70,h:150,lv:ri(6,9)/10}},
+      {type:'same',a:{w:60,h:160,lv:ri(6,9)/10},b:{w:60,h:160,lv:ri(2,5)/10}},
+      {type:'level',a:{w:50,h:150,lv:.6},b:{w:100,h:150,lv:.6}},
+      {type:'level',a:{w:110,h:120,lv:.7},b:{w:60,h:120,lv:.7}},
+      {type:'trick',a:{w:40,h:180,lv:.85},b:{w:110,h:110,lv:.7}},
+    ]).map(x=>{ if(x.type==='trick'||Math.random()<.5) return x; return {...x,a:x.b,b:x.a}; }), render:it=>{
+      const va=it.a.w*it.a.h*it.a.lv, vb=it.b.w*it.b.h*it.b.lv;
+      if(it.type==='trick'){
+        playShell(`<p class="prompt">甲杯的水面比較高。可以直接說甲杯的水比較多嗎？</p><div class="cups">${cupSVG(it.a,'甲')}${cupSVG(it.b,'乙')}</div>
+          <div id="cb">${choicesHTML([{v:'pour',t:'不行，要倒進一樣的杯子再比'},{v:'yes',t:'可以，水面高的比較多'}],'txt')}</div>`);
+        wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),'pour',b);const ok=v==='pour';
+          finishItem({q:'細高杯和寬矮杯比水量',answer:'倒進一樣的杯子比',given:v==='pour'?'倒進一樣的杯子比':'水面高的比較多',tags:ok?[]:['杯子不一樣也只看水面高低']},ok,'兩個杯子大小不一樣，水面高不代表水比較多。要倒進兩個一樣的杯子，或用一樣的小杯子量，才比得出來。');});
+        return;
+      }
+      const more=va>vb?'甲':'乙';
+      playShell(`<p class="prompt">哪一杯的水比較多？</p><div class="cups">${cupSVG(it.a,'甲')}${cupSVG(it.b,'乙')}</div><div id="cb">${choicesHTML(['甲','乙'],'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),more,b);const ok=v===more;
+        finishItem({q:it.type==='same'?'一樣的杯子，水面不同':'水面一樣高，杯子大小不同',answer:more,given:v,tags:ok?[]:[it.type==='same'?'一樣的杯子不會看水面':'水面一樣高時沒看杯子大小']},ok,it.type==='same'?'兩個杯子一樣，水面越高，水越多。':'水面一樣高，杯子越大（越寬），水越多。');});
+    }},
+    {key:'unit', title:'用小杯子量', tip:'把水倒進小杯子，數一數倒滿幾杯。', items:()=>{
+      const out=[];
+      for(let i=0;i<3;i++){ const a=ri(3,9); let b=ri(3,9); while(b===a) b=ri(3,9); out.push({type:pick(['more','sum','diff']),a,b}); }
+      const a=ri(4,7),b=ri(a+1,9); out.push({type:'diffcup',a,b});
+      return shuffle(out);
+    }, render:it=>{
+      if(it.type==='diffcup'){
+        playShell(`<p class="prompt">甲瓶的水倒滿 ${it.a} 個<b>大杯子</b>，乙瓶的水倒滿 ${it.b} 個<b>小杯子</b>。哪一瓶的水比較多？</p>
+          <div class="pour"><span class="say">甲</span>${smallCups(it.a,true)}</div><div class="pour"><span class="say">乙</span>${smallCups(it.b,false)}</div>
+          <div id="cb">${choicesHTML([{v:'a',t:'甲'},{v:'b',t:'乙'},{v:'x',t:'杯子不一樣，不能這樣比'}],'txt')}</div>`);
+        wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),'x',b);const ok=v==='x';
+          finishItem({q:`甲 ${it.a} 大杯、乙 ${it.b} 小杯`,answer:'不能直接比',given:{a:'甲',b:'乙',x:'不能直接比'}[v],tags:ok?[]:['用不同大小的杯子，還直接比杯數']},ok,'甲用大杯子、乙用小杯子，一杯的水不一樣多，所以不能直接比杯數，要用一樣的杯子量。');});
+        return;
+      }
+      const cups=`<div class="pour"><span class="say">甲</span>${smallCups(it.a)}</div><div class="pour"><span class="say">乙</span>${smallCups(it.b)}</div>`;
+      if(it.type==='more'){
+        const m=it.a>it.b?'甲':'乙';
+        playShell(`<p class="prompt">甲瓶和乙瓶裝滿水，倒進一樣的小杯子。哪一瓶的容量比較大？</p>${cups}<div id="cb">${choicesHTML(['甲','乙'],'txt')}</div>`);
+        wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),m,b);const ok=v===m;finishItem({q:`甲 ${it.a} 杯、乙 ${it.b} 杯，誰比較大`,answer:m,given:v,tags:ok?[]:['看不懂倒的杯數和容量的關係']},ok,`甲倒滿 ${it.a} 杯、乙倒滿 ${it.b} 杯，${m}倒得比較多杯，${m}瓶的容量比較大。`);});
+      } else {
+        const ans=it.type==='sum'?it.a+it.b:Math.abs(it.a-it.b), q=it.type==='sum'?'甲瓶和乙瓶一共可以倒滿幾個小杯子？':`${it.a>it.b?'甲':'乙'}瓶比${it.a>it.b?'乙':'甲'}瓶多倒滿幾個小杯子？`;
+        playShell(`<p class="prompt">${q}</p>${cups}${oneAnswerHTML('','杯')}`);
+        askNum($('.play'),2,g=>{const ok=g===ans;finishItem({q:`甲 ${it.a} 杯、乙 ${it.b} 杯：${it.type==='sum'?'共幾杯':'多幾杯'}`,answer:ans,given:g,tags:ok?[]:[it.type==='sum'?'合起來算錯':'相差算錯']},ok,it.type==='sum'?`${it.a}＋${it.b}＝${ans}。`:`${Math.max(it.a,it.b)}－${Math.min(it.a,it.b)}＝${ans}。`);});
+      }
+    }},
+    {key:'order', title:'排順序', tip:'由多到少，依序點選。', items:()=>{
+      const out=[];
+      for(let i=0;i<3;i++){ const ns=shuffle([2,3,4,5,6,7,8,9]).slice(0,3); out.push({type:'cups',ns}); }
+      out.push({type:'same',lv:shuffle([.3,.55,.85])});
+      return shuffle(out);
+    }, render:it=>{
+      const names=['甲','乙','丙'];
+      const body=it.type==='cups'?names.map((n,i)=>`<div class="pour"><span class="say">${n}</span>${smallCups(it.ns[i])}</div>`).join('')
+        :`<div class="cups">${names.map((n,i)=>cupSVG({w:70,h:150,lv:it.lv[i]},n)).join('')}</div>`;
+      const val=i=>it.type==='cups'?it.ns[i]:it.lv[i];
+      const order=[0,1,2].sort((x,y)=>val(y)-val(x)).map(i=>names[i]);
+      playShell(`<p class="prompt">${it.type==='cups'?'三個水壺裝滿水，倒進一樣的小杯子。':'三個一樣的杯子。'}由<b>多</b>到<b>少</b>依序點選：</p>${body}
+        <div class="choices" id="ord">${names.map(n=>`<button class="choice txt" data-v="${n}">${n}</button>`).join('')}</div><p class="say" id="seqtxt">　</p>`);
+      const picked=[];
+      document.querySelectorAll('#ord .choice').forEach(b=>b.addEventListener('click',()=>{
+        if(b.disabled) return; b.disabled=true; b.classList.add('picked'); picked.push(b.dataset.v); $('#seqtxt').textContent=picked.join(' → ');
+        if(picked.length===3){ const ok=picked.join()===order.join();
+          finishItem({q:it.type==='cups'?`杯數 ${it.ns.join('、')}`:'一樣的杯子比水面',answer:order.join('→'),given:picked.join('→'),tags:ok?[]:['排順序錯']},ok,`由多到少是 ${order.join(' → ')}。`); }
+      }));
+    }},
+  ]
+};
+
+/* ================= NC-2-12-2 重量 ================= */
+// tilt: -1 left side low (left heavier), 1 right side low, 0 level
+function balanceSVG(L,R,tilt){
+  const a=tilt*12, C=200;
+  const obj=(o,x,y)=>{ if(!o) return ''; const r=o.big?44:o.small?18:28;
+    return `<circle cx="${x}" cy="${y-r}" r="${r}" fill="${o.color||'var(--fig)'}" stroke="var(--ink)" stroke-width="2.5"/><text x="${x}" y="${y-r*2-8}" text-anchor="middle" font-size="20">${o.name}</text>`; };
+  const blocks=(n,x,y)=>Array.from({length:n},(_,i)=>`<rect x="${x-45+(i%5)*18}" y="${y-16-Math.floor(i/5)*16}" width="16" height="15" fill="var(--bt-t)" stroke="var(--ink)" stroke-width="1.5"/>`).join('');
+  const side=(o,dx)=>{ const rad=a*Math.PI/180, x=C+dx*Math.cos(rad), y=110+dx*Math.sin(rad);
+    return `<line x1="${x}" y1="${y}" x2="${x}" y2="${y+40}" stroke="var(--ink)" stroke-width="2"/><path d="M${x-60} ${y+40} H${x+60} L${x+48} ${y+52} H${x-48} Z" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="2.5"/>${o&&o.blocks?blocks(o.blocks,x,y+40):obj(o,x,y+40)}`; };
+  return `<div class="bal-wrap"><svg viewBox="0 0 400 230" role="img" aria-label="天平">
+    <path d="M${C} 110 L${C-30} 220 H${C+30} Z" fill="var(--surface-2)" stroke="var(--ink)" stroke-width="3"/>
+    <g transform="rotate(${a} ${C} 110)"><rect x="${C-150}" y="104" width="300" height="12" rx="6" fill="var(--ink-2)"/></g>
+    <circle cx="${C}" cy="110" r="8" fill="var(--ink)"/>
+    ${side(L,-140)}${side(R,140)}
+  </svg></div>`;
+}
+const FRUITS=[['香蕉','#F4D35E'],['草莓','#E5534B'],['鳳梨','#E0A526'],['蘋果','#D64545'],['木瓜','#F29E4C'],['橘子','#F7A541'],['牛奶','#F3F1EA'],['書本','#7FA7D9']];
+const G_12_2 = {
+  intro:'今天要練習比「重量」：<br>看天平、想一想、用積木量一量。',
+  note:'「看天平」有一題大棉花和小石頭，看她會不會以為大的就比較重；「黏土」那站看她懂不懂形狀改變、重量不變。',
+  stages:[
+    {key:'scale', title:'看天平', tip:'天平往哪一邊低，哪一邊就比較重。', items:()=>{
+      const fr=shuffle(FRUITS);
+      return shuffle([
+        {L:{name:fr[0][0],color:fr[0][1]},R:{name:fr[1][0],color:fr[1][1]},tilt:-1},
+        {L:{name:fr[2][0],color:fr[2][1]},R:{name:fr[3][0],color:fr[3][1]},tilt:1},
+        {L:{name:'棉花',color:'#FFFFFF',big:true},R:{name:'石頭',color:'#9AA4AB',small:true},tilt:1,trick:true},
+        {L:{name:'數學課本',color:'#7FA7D9'},R:{name:'數學課本',color:'#7FA7D9'},tilt:0},
+        {L:{name:fr[4][0],color:fr[4][1],small:true},R:{name:fr[5][0],color:fr[5][1],big:true},tilt:-1,trick:true},
+      ]).map(x=>({...x,ask:pick(['重','輕'])}));
+    }, render:it=>{
+      const heavy=it.tilt===0?'一樣':it.tilt<0?it.L.name:it.R.name, light=it.tilt===0?'一樣':it.tilt<0?it.R.name:it.L.name;
+      const want=it.ask==='重'?heavy:light;
+      const opts=it.L.name===it.R.name?['左邊的','右邊的','一樣'].map((t,i)=>({v:i===2?'一樣':i===0?'L':'R',t})):[it.L.name,it.R.name,'一樣'];
+      const wantV=it.L.name===it.R.name?'一樣':want;
+      playShell(`<p class="prompt">${it.L.name===it.R.name?'兩邊誰比較'+it.ask+'？':`${it.L.name}和${it.R.name}，誰比較${it.ask}？`}</p>${balanceSVG(it.L,it.R,it.tilt)}<div id="cb">${choicesHTML(opts.map(o=>typeof o==='string'?{v:o,t:o==='一樣'?'一樣重':o}:o),'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),wantV,b);const ok=v===wantV,tags=[];
+        if(!ok) tags.push(it.trick?'以為看起來大的就比較重':it.tilt===0?'天平平平的不知道是一樣重':'看不懂天平');
+        finishItem({q:`${it.L.name}｜${it.R.name} 比${it.ask}`,answer:wantV,given:v,tags},ok,it.tilt===0?'天平兩邊一樣高，代表一樣重。':`天平${it.tilt<0?'左':'右'}邊比較低，${heavy}比較重，${light}比較輕。${it.trick?'看起來大的不一定比較重。':''}`);});
+    }},
+    {key:'clay', title:'黏土還是一樣重嗎', tip:'黏土的形狀變了，重量會變嗎？', items:()=>shuffle([
+      {act:'把黏土捏成長長的一條',change:0},{act:'把黏土切成兩小塊，一起放回去',change:0},{act:'把黏土搓成很多小球，全部放回去',change:0},{act:'把黏土拿掉一小塊',change:-1},
+    ]), render:it=>{
+      const want=it.change===0?'一樣':it.change<0?'書本':'黏土';
+      playShell(`<p class="prompt">黏土和書本放在天平兩邊，天平平平的。</p>${balanceSVG({name:'黏土',color:'#C9A0DC'},{name:'書本',color:'#7FA7D9'},0)}
+        <p class="prompt big-text">如果${it.act}，再和書本比，誰比較重？</p><div id="cb">${choicesHTML([{v:'黏土',t:'黏土'},{v:'書本',t:'書本'},{v:'一樣',t:'一樣重'}],'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),want,b);const ok=v===want;
+        finishItem({q:it.act,answer:want,given:v,tags:ok?[]:[it.change===0?'形狀改變就以為重量改變':'拿走一塊卻以為還是一樣重']},ok,it.change===0?'黏土只是形狀變了，沒有多也沒有少，所以還是一樣重。':'黏土被拿走一塊，變少了，所以書本比較重。');});
+    }},
+    {key:'reason', title:'推理和數積木', tip:'用天平的結果推推看，或比一比積木的個數。', items:()=>{
+      const fr=shuffle(FRUITS.slice(0,6)).map(f=>f[0]);
+      const a=ri(3,7); let b=ri(3,9); while(b===a) b=ri(3,9);
+      const c=ri(3,6), d=ri(c+1,9);
+      return shuffle([
+        {type:'trans',A:fr[0],B:fr[1],C:fr[2]},
+        {type:'trans',A:fr[3],B:fr[4],C:fr[5],flip:true},
+        {type:'units',X:'尺',Y:'橡皮擦',a,b},
+        {type:'sum',X:'麵包',Y:'養樂多',a:c,b:d},
+        {type:'mix',X:'蘋果',Y:'香蕉',a:ri(4,6),b:ri(7,9)},
+      ]);
+    }, render:it=>{
+      if(it.type==='trans'){
+        // A heavier than B, B heavier than C  (flip: ask lighter)
+        const ask=it.flip?'輕':'重', want=it.flip?it.C:it.A;
+        playShell(`<p class="prompt">看兩個天平：</p><div class="bal-row">${balanceSVG({name:it.A},{name:it.B},-1)}${balanceSVG({name:it.B},{name:it.C},-1)}</div>
+          <p class="prompt big-text">不用再秤，${it.A}和${it.C}誰比較${ask}？</p><div id="cb">${choicesHTML([it.A,it.C,'不知道'],'txt')}</div>`);
+        wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),want,b);const ok=v===want;
+          finishItem({q:`${it.A}＞${it.B}，${it.B}＞${it.C}，比${ask}`,answer:want,given:v,tags:ok?[]:['不會用兩次天平推理（遞移）']},ok,`${it.A}比${it.B}重，${it.B}又比${it.C}重，所以${it.A}比${it.C}重，${it.C}最輕。`);});
+      } else if(it.type==='units'){
+        const heavy=it.a>it.b?it.X:it.Y;
+        playShell(`<p class="prompt">1 ${it.X==='尺'?'根':'個'}${it.X}和 ${it.a} 個積木一樣重；1 個${it.Y}和 ${it.b} 個積木一樣重。</p><div class="bal-row">${balanceSVG({name:it.X},{blocks:it.a},0)}${balanceSVG({name:it.Y},{blocks:it.b},0)}</div>
+          <div class="steps"><div class="step" id="s1"><span class="say">誰比較重？</span>${choicesHTML([it.X,it.Y],'txt')}</div>
+          <div class="step dim" id="s2"><span class="say">重幾個積木？</span>${oneAnswerHTML('','個')}</div></div>`);
+        $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+        let p=null;
+        wireChoices($('#s1'),(v,b)=>{p=v;markChoices($('#s1'),heavy,b);enableStep($('#s2'));
+          askNum($('#s2'),2,g=>{const d=Math.abs(it.a-it.b),ok=p===heavy&&g===d,tags=[];if(p!==heavy)tags.push('積木多的反而說比較輕');if(g!==d)tags.push('相差幾個算錯');
+            finishItem({q:`${it.X}=${it.a}積木，${it.Y}=${it.b}積木`,answer:`${heavy}，${d}`,given:`${p}，${g}`,tags},ok,`${Math.max(it.a,it.b)} 個積木比 ${Math.min(it.a,it.b)} 個積木重，所以${heavy}比較重，多 ${Math.max(it.a,it.b)}－${Math.min(it.a,it.b)}＝${d} 個積木。`);});});
+      } else if(it.type==='sum'){
+        playShell(`<p class="prompt big-text">1 個${it.X}和 ${it.a} 個積木一樣重，1 罐${it.Y}和 ${it.b} 個積木一樣重。把${it.X}和${it.Y}放在一起，和幾個積木一樣重？</p>${oneAnswerHTML('','個')}`);
+        askNum($('.play'),2,g=>{const ok=g===it.a+it.b;finishItem({q:`${it.X}${it.a}＋${it.Y}${it.b}`,answer:it.a+it.b,given:g,tags:ok?[]:['合起來的重量算錯']},ok,`${it.a}＋${it.b}＝${it.a+it.b}，和 ${it.a+it.b} 個積木一樣重。`);});
+      } else {
+        playShell(`<p class="prompt big-text">1 顆${it.X}和 ${it.a} 個<b>大積木</b>一樣重，1 根${it.Y}和 ${it.b} 個<b>小迴紋針</b>一樣重。誰比較重？</p>
+          <div id="cb">${choicesHTML([{v:'a',t:it.X},{v:'b',t:it.Y},{v:'x',t:'東西不一樣，不能這樣比'}],'txt')}</div>`);
+        wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),'x',b);const ok=v==='x';
+          finishItem({q:`${it.X}=${it.a}大積木，${it.Y}=${it.b}迴紋針`,answer:'不能直接比',given:{a:it.X,b:it.Y,x:'不能直接比'}[v],tags:ok?[]:['用不同的東西量，還直接比個數']},ok,'一個是用大積木量、一個是用迴紋針量，單位不一樣，不能只看個數。要用一樣的東西量才能比。');});
+      }
+    }},
+  ]
+};
+
+/* ================= RC-2-2-1 三個數相加，換順序和不變 ================= */
+function genEasy3(){ for(;;){ const xx=ri(1,8)*10+ri(1,9), yy=10-(xx%10)+ri(0,4)*10, z=ri(12,59); if(z%10===0||(z+xx)%10===0||(z+yy)%10===0||xx+yy+z>199) continue; return shuffle([xx,yy,z]); } }
+const G_2_2r = {
+  intro:'今天要練習：三個數相加，<br>哪兩個先加都一樣，挑容易的先算。',
+  note:'「不用算就知道」有時間條，答對但花很久，代表她還是一個一個算，沒有用到「換順序和不變」。',
+  stages:[
+    {key:'easy', title:'先算哪兩個', tip:'找出加起來是整十的兩個數，先算它們。', items:()=>[0,1,2,3,4].map(()=>genEasy3()), render:it=>{
+      const [a,b,c]=it, pairs=[[0,1],[1,2],[0,2]], good=pairs.find(([i,j])=>(it[i]+it[j])%10===0);
+      const goodV=`${it[good[0]]}＋${it[good[1]]}`;
+      playShell(`<p class="prompt">算算看：<span class="big-inline">${a}＋${b}＋${c}</span></p>
+        <div class="steps"><div class="step" id="s1"><span class="say">先算哪兩個最容易？</span>${choicesHTML(pairs.map(([i,j])=>`${it[i]}＋${it[j]}`))}</div>
+        <div class="step dim" id="s2"><span class="say">答案是</span>${oneAnswerHTML()}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(x=>x.disabled=true);
+      let p=null;
+      wireChoices($('#s1'),(v,bt)=>{p=v;markChoices($('#s1'),goodV,bt);enableStep($('#s2'));
+        askNum($('#s2'),3,g=>{const ans=a+b+c,ok=p===goodV&&g===ans,tags=[];if(p!==goodV)tags.push('沒有找湊十的兩個數');if(g!==ans)tags.push('加法算錯');
+          const rest=it.find((x,k)=>!good.includes(k));
+          finishItem({q:`${a}+${b}+${c}`,answer:`${goodV}，${ans}`,given:`${p}，${g}`,tags},ok,`${goodV}＝${it[good[0]]+it[good[1]]}，是整十比較好算，再加 ${rest}：${it[good[0]]+it[good[1]]}＋${rest}＝${ans}。`);});});
+    }},
+    {key:'same', title:'不用算就知道', tip:'看清楚三個數，不用算也知道誰比較多。', items:()=>{
+      const names=['小英','小平','小華'];
+      return shuffle([0,1,2,3,4].map(i=>{ const n=[ri(12,48),ri(12,48),ri(12,48)]; const same=i<3; const n2=shuffle(n); if(!same){const k=ri(0,2); n2[k]+=pick([1,10]);} return {n,n2,same,who:[names[0],names[1]]}; }));
+    }, render:it=>{
+      const s1=it.n.reduce((a,b)=>a+b), s2=it.n2.reduce((a,b)=>a+b), want=it.same?'一樣':s1>s2?it.who[0]:it.who[1];
+      playShell(`<div class="timer" aria-hidden="true"><i id="bar"></i></div>
+        <p class="prompt big-text">${it.who[0]}存了 ${it.n.join(' 元、')} 元；<br>${it.who[1]}存了 ${it.n2.join(' 元、')} 元。<br>誰存的錢比較多？</p>
+        <div id="cb">${choicesHTML([it.who[0],it.who[1],{v:'一樣',t:'一樣多'}],'txt')}</div>`);
+      requestAnimationFrame(()=>{const bar=$('#bar');if(bar){bar.style.transitionDuration='10000ms';bar.style.transform='scaleX(0)';}});
+      wireChoices($('#cb'),(v,b)=>{const bar=$('#bar');if(bar)bar.style.transitionDuration='0ms';markChoices($('#cb'),want,b);
+        const ok=v===want, ms=performance.now()-S.t0, tags=[];
+        if(!ok) tags.push(it.same?'換了順序就以為不一樣多':'沒有看出有一個數不一樣'); else if(ms>10000) tags.push('超過 10 秒（可能是一個一個算）');
+        finishItem({q:`${it.n.join('+')} vs ${it.n2.join('+')}`,answer:want==='一樣'?'一樣多':want,given:v==='一樣'?'一樣多':v,tags},ok,it.same?'兩個人的三個數都一樣，只是順序不同，加起來一定一樣多。':`有一個數不一樣：${it.n.join('＋')}＝${s1}，${it.n2.join('＋')}＝${s2}。`);});
+    }},
+    {key:'blank', title:'填填看', tip:'換了順序，和不變，□ 是多少？', items:()=>{
+      const out=[];
+      for(let i=0;i<3;i++){const a=ri(12,89),b=ri(12,89);out.push({type:'two',a,b});}
+      for(let i=0;i<2;i++){const n=[ri(12,59),ri(12,59),ri(12,59)];out.push({type:'three',n,p:shuffle([0,1,2])});}
+      return shuffle(out);
+    }, render:it=>{
+      let q,ans;
+      if(it.type==='two'){ q=`${it.a} ＋ ${it.b} ＝ ${it.b} ＋ □`; ans=it.a; }
+      else { const m=it.p.map(i=>it.n[i]); const hole=ri(0,2); ans=m[hole]; q=`${it.n.join(' ＋ ')} ＝ ${m.map((x,i)=>i===hole?'□':x).join(' ＋ ')}`; }
+      playShell(`<p class="prompt">□ 裡要填多少？</p><div class="big-q" style="font-size:clamp(26px,6vw,44px)">${q}</div>${oneAnswerHTML('□＝')}`);
+      askNum($('.play'),3,g=>{const ok=g===ans;const tags=ok?[]:[ (it.type==='two'&&g===it.a+it.b)?'把兩邊的數全部加起來':'不懂換順序和不變'];
+        finishItem({q,answer:ans,given:g,tags},ok,`等號兩邊的數字一樣，只是順序換了，所以 □ 是 ${ans}，不用真的算出總和。`);});
+    }},
+  ]
+};
+
+/* ================= NC-2-8-1 加減兩步驟 ================= */
+function addSubStory(kind){
+  for(;;){
+    if(kind==='bus+'){ const a=ri(11,30),b=ri(5,19),c=ri(3,15); return {text:`公車上原有 ${a} 個女生和 ${b} 個男生，又上來 ${c} 個人，公車上共有多少人？`,f:`${a}＋${b}`,fv:a+b,fw:[`${a}－${b}`,`${a}＋${c}`],s:`${a+b}＋${c}`,ans:a+b+c,why:`先算原來有幾人：${a}＋${b}＝${a+b}，再加上來的：${a+b}＋${c}＝${a+b+c}。`,ops:['+','+'],nums:[a,b,c]}; }
+    if(kind==='money+'){ const a=ri(21,49),b=ri(11,39),c=ri(11,39); return {text:`小雲有 ${a} 元，哥哥有 ${b} 元，妹妹有 ${c} 元，三個人共有多少元？`,f:`${a}＋${b}`,fv:a+b,fw:[`${a}－${b}`,`${Math.max(b,c)}－${Math.min(b,c)}`],s:`${a+b}＋${c}`,ans:a+b+c,why:`先算小雲和哥哥：${a}＋${b}＝${a+b}，再加妹妹：${a+b}＋${c}＝${a+b+c}。`}; }
+    if(kind==='spend-'){ const a=ri(60,99),b=ri(11,29),c=ri(11,29); if(a-b-c<5) continue; return {text:`媽媽有 ${a} 元，買菜花了 ${b} 元，買水果又花了 ${c} 元，還剩下多少元？`,f:`${a}－${b}`,fv:a-b,fw:[`${a}＋${b}`,`${b}＋${c}`],s:`${a-b}－${c}`,ans:a-b-c,why:`先算買菜後剩下：${a}－${b}＝${a-b}，再減買水果的：${a-b}－${c}＝${a-b-c}。`}; }
+    if(kind==='bus-+'){ const a=ri(25,45),b=ri(5,15),c=ri(3,12); return {text:`公車上有 ${a} 人，到站後下車 ${b} 人，又上車 ${c} 人，現在公車上有多少人？`,f:`${a}－${b}`,fv:a-b,fw:[`${a}＋${b}`,`${a}－${c}`],s:`${a-b}＋${c}`,ans:a-b+c,why:`先算下車後剩幾人：${a}－${b}＝${a-b}，再加上車的：${a-b}＋${c}＝${a-b+c}。`,ops:['-','+'],nums:[a,b,c]}; }
+    if(kind==='bus+-'){ const a=ri(20,40),b=ri(5,15),c=ri(3,12); return {text:`公車上有 ${a} 人，到站後上車 ${b} 人，又下車 ${c} 人，現在公車上有多少人？`,f:`${a}＋${b}`,fv:a+b,fw:[`${a}－${b}`,`${a}－${c}`],s:`${a+b}－${c}`,ans:a+b-c,why:`先算上車後有幾人：${a}＋${b}＝${a+b}，再減下車的：${a+b}－${c}＝${a+b-c}。`,ops:['+','-'],nums:[a,b,c]}; }
+  }
+}
+const G_8_1 = {
+  intro:'今天要練習加和減的兩步驟問題：<br>先想好先算什麼、再算什麼。',
+  note:'「小老師改作業」裡的錯法是只算一步、或把「下車」算成加法；「算式配故事」看她分不分得清上車、下車的順序。',
+  stages:[
+    {key:'steps', title:'先算什麼', tip:'先選第一步，再一步一步算出答案。', items:()=>shuffle(['bus+','money+','spend-','bus-+','bus+-']).map(addSubStory), render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>
+        <div class="steps"><div class="step" id="s1"><span class="say">先算</span>${choicesHTML(shuffle([it.f,...it.fw.slice(0,2)]))}</div>
+        <div class="step dim" id="s2"><span class="say">先算的答案</span>${oneAnswerHTML()}</div>
+        <div class="step dim" id="s3"><span class="say">最後答案</span>${oneAnswerHTML()}</div></div>`);
+      ['#s2','#s3'].forEach(s=>$(s).querySelectorAll('button').forEach(b=>b.disabled=true));
+      let p1=null,g1=null;
+      wireChoices($('#s1'),(v,b)=>{p1=v;markChoices($('#s1'),it.f,b);enableStep($('#s2'));
+        askNum($('#s2'),3,g=>{g1=g;enableStep($('#s3'));
+          askNum($('#s3'),3,g2=>{const ok=p1===it.f&&g1===it.fv&&g2===it.ans,tags=[];
+            if(p1!==it.f)tags.push('不知道要先算什麼');else if(g1!==it.fv)tags.push('第一步算錯');
+            if(g2!==it.ans)tags.push(g2===it.fv?'只算了第一步':'第二步算錯');
+            finishItem({q:it.text,answer:`${it.f}=${it.fv}，${it.s}=${it.ans}`,given:`${p1}=${g1}，${g2}`,tags},ok,it.why);});});});
+    }},
+    {key:'check', title:'小老師改作業', tip:'同學的兩個算式對不對？錯了就幫他改。', items:()=>{
+      const k=shuffle(['bus-+','bus+-','spend-','bus+']).map(addSubStory);
+      const errs=[
+        x=>({first:`${x.f}＝${x.fv}`,shown:x.fv,err:'只算了第一步'}),
+        x=>{ if(!x.ops||!x.ops.includes('-')) return null; const [a,b,c]=x.nums; const wrongAns=x.ops[0]==='-'?a+b+c:a+b+c; return {first:`${x.ops[0]==='-'?`${a}＋${b}＝${a+b}`:x.f+'＝'+x.fv}`,shown:x.ops[0]==='-'?a+b+c:x.fv+c,err:x.ops[0]==='-'?'把「下車」也用加的':'把「下車」也用加的'}; },
+      ];
+      return k.map((x,i)=>{ let e=null; if(i===0) e=errs[0](x); else if(i===1) e=errs[1](x)||errs[0](x); if(!e) return {...x,wrong:false,first:`${x.f}＝${x.fv}`,shown:x.ans}; return {...x,wrong:true,...e}; }).map((x,i)=>({...x,who:['小芳','阿哲','小美','大維'][i]}));
+    }, render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>
+        <div class="detective"><span class="face">${it.who.slice(-1)}</span><div><p class="muted">${it.who}的答案：</p><p class="eq" style="font-size:24px">先算 ${it.first}<br>答：${it.shown}</p></div></div>
+        <div class="steps"><div class="step" id="d1"><span class="say">算對了嗎？</span>${choicesHTML([{v:'1',t:'對'},{v:'0',t:'不對'}],'txt')}</div>
+        <div class="step dim" id="d2" hidden><span class="say">正確答案是</span>${oneAnswerHTML()}</div></div>`);
+      wireChoices($('#d1'),(v,b)=>{markChoices($('#d1'),it.wrong?'0':'1',b);
+        if(v==='1'){ const ok=!it.wrong; finishItem({q:`${it.who}：${it.shown}`,answer:it.wrong?`不對，${it.ans}`:'對',given:'對',wrongType:it.err||'',tags:ok?[]:['沒看出錯誤（'+it.err+'）']},ok,(it.wrong?`${it.who}${it.err}了。`:`${it.who}算對了。`)+it.why); }
+        else { const d2=$('#d2'); d2.hidden=false; enableStep(d2);
+          askNum(d2,3,g=>{const ok=it.wrong&&g===it.ans,tags=[];if(!it.wrong)tags.push('把對的當成錯的');else if(g!==it.ans)tags.push('看出錯誤但改不對');
+            finishItem({q:`${it.who}：${it.shown}`,answer:it.wrong?`不對，${it.ans}`:'對',given:`不對，${g}`,wrongType:it.err||'',tags},ok,(it.wrong?`${it.who}${it.err}了。`:`${it.who}其實算對了。`)+it.why);}); }
+      });
+    }},
+    {key:'match', title:'算式配故事', tip:'看兩個算式，找出說的是哪一個故事。', items:()=>[0,1,2,3].map(()=>{
+      const a=ri(25,45),b=ri(5,15),c=ri(3,12), first=pick(['-','+']);
+      const story=(o1,o2)=>`公車上有 ${a} 人，到站後${o1==='-'?'下車':'上車'} ${b} 人，又${o2==='-'?'下車':'上車'} ${c} 人，現在公車上有多少人？`;
+      const right=story(first,first==='-'?'+':'-'), wrong=story(first==='-'?'+':'-',first);
+      const v1=first==='-'?a-b:a+b, v2=first==='-'?v1+c:v1-c;
+      return {expr:`先算 ${a}${first==='-'?'－':'＋'}${b}＝${v1}，再算 ${v1}${first==='-'?'＋':'－'}${c}＝${v2}`,right,wrong,pos:pick([0,1])};
+    }), render:it=>{
+      const st=it.pos===0?[it.right,it.wrong]:[it.wrong,it.right];
+      playShell(`<p class="prompt"><b class="num">${it.expr}</b><br>這是哪一個故事的算法？</p><div id="cb"><div class="choices col">${st.map((t,i)=>`<button class="choice txt story" data-v="${i}">${t}</button>`).join('')}</div></div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),String(it.pos),b);const ok=+v===it.pos;
+        finishItem({q:it.expr,answer:it.right,given:st[+v],tags:ok?[]:['上車、下車和加、減對不起來']},ok,'上車要用加，下車要用減；先發生的事先算。');});
+    }},
+  ]
+};
+
+/* ================= SC-2-1-1 角、頂點、邊 ================= */
+const POLYS=[
+  {name:'三角形',pts:[[3,0],[6,5],[0,5]]},
+  {name:'正方形',pts:[[0,0],[4,0],[4,4],[0,4]]},
+  {name:'長方形',pts:[[0,0],[7,0],[7,4],[0,4]]},
+  {name:'斜放的正方形',pts:[[3,0],[6,3],[3,6],[0,3]]},
+  {name:'梯形',pts:[[2,0],[6,0],[8,4],[0,4]]},
+  {name:'五邊形',pts:[[3,0],[6,2],[5,5],[1,5],[0,2]]},
+  {name:'六邊形',pts:[[2,0],[5,0],[7,3],[5,6],[2,6],[0,3]]},
+];
+function polySVG(pg,{taps=null,sel=new Set(),reveal=false,marks=null}={}){
+  const S=44,P=30,X=x=>P+x*S,Y=y=>P+y*S, pts=pg.pts, mx=Math.max(...pts.map(p=>p[0])), my=Math.max(...pts.map(p=>p[1]));
+  let extra='';
+  if(taps) extra=taps.map((t,i)=>{const on=sel.has(i), cls=reveal?(t.v?(on?'t-ok':'t-miss'):(on?'t-bad':'')):(on?'t-on':'');return `<g class="tap ${cls}" data-t="${i}"><circle class="t-hit" cx="${X(t.x)}" cy="${Y(t.y)}" r="22"/><circle class="t-dot" cx="${X(t.x)}" cy="${Y(t.y)}" r="9"/></g>`;}).join('');
+  if(marks) extra+=marks;
+  return `<div class="fig-wrap"><svg viewBox="0 0 ${X(mx)+P} ${Y(my)+P}" role="img" aria-label="${pg.name}"><polygon points="${pts.map(([x,y])=>X(x)+','+Y(y)).join(' ')}" fill="var(--fig)" stroke="var(--ink)" stroke-width="4" stroke-linejoin="round"/>${extra}</svg></div>`;
+}
+const G_1_1s = {
+  intro:'今天要認識平面圖形的「邊、角、頂點」。',
+  note:'「點頂點」裡混有邊中間的點，看她會不會把邊上的點也當成頂點；「斜放的正方形」看她會不會因為擺法不同就數錯。',
+  stages:[
+    {key:'tap', title:'點頂點', tip:'把圖形所有的頂點都點出來（邊上中間的點不是頂點）。', items:()=>shuffle(POLYS).slice(0,4), render:pg=>{
+      const n=pg.pts.length, taps=shuffle([...pg.pts.map(([x,y])=>({x,y,v:1})),...pg.pts.map(([x,y],i)=>{const [x2,y2]=pg.pts[(i+1)%n];return {x:(x+x2)/2,y:(y+y2)/2,v:0};}).slice(0,Math.min(3,n))]);
+      const sel=new Set();
+      const draw=()=>{$('#pf').innerHTML=polySVG(pg,{taps,sel});$('#pf').querySelectorAll('.tap').forEach(g=>g.addEventListener('click',()=>{const i=+g.dataset.t;sel.has(i)?sel.delete(i):sel.add(i);draw();}));};
+      playShell(`<p class="prompt">點出這個${pg.name}所有的「頂點」，再按確定。</p><div id="pf"></div><div><button class="btn" id="done">確定</button></div>`);
+      draw();
+      $('#done').addEventListener('click',()=>{$('#done').disabled=true;$('#pf').innerHTML=polySVG(pg,{taps,sel,reveal:true});
+        const miss=taps.filter((t,i)=>t.v&&!sel.has(i)).length, extra=taps.filter((t,i)=>!t.v&&sel.has(i)).length, ok=!miss&&!extra, tags=[];
+        if(extra)tags.push('把邊上的點當成頂點'); if(miss)tags.push('漏掉頂點');
+        finishItem({q:`${pg.name}點頂點`,answer:`${n} 個頂點`,given:`選了 ${sel.size} 個（漏 ${miss}、多 ${extra}）`,tags},ok,`兩條邊接在一起、尖尖的地方才是頂點，這個${pg.name}有 ${n} 個頂點。邊的中間不是頂點。`);});
+    }},
+    {key:'count', title:'數一數', tip:'數出邊、角、頂點各有幾個。', items:()=>shuffle(POLYS).slice(0,5), render:pg=>{
+      const n=pg.pts.length;
+      playShell(`<p class="prompt">這個${pg.name.replace('斜放的','')}有幾條邊、幾個角、幾個頂點？</p>${polySVG(pg)}
+        <div class="np"><div class="np-slots">${slotHTML(0,{post:'條邊'})}${slotHTML(1,{post:'個角'})}${slotHTML(2,{post:'個頂點'})}</div>${padHTML()}</div>`);
+      wirePad($('.play'),{max:[1,1,1]},v=>{const g=v.map(Number),ok=g.every(x=>x===n),tags=[];
+        if(!ok){ if(g[0]===g[1]&&g[1]===g[2]) tags.push('數錯了（三個一樣但不對）'); else tags.push('不知道邊、角、頂點的個數一樣多'); }
+        finishItem({q:`${pg.name}`,answer:`${n} 邊 ${n} 角 ${n} 頂點`,given:`${g[0]} 邊 ${g[1]} 角 ${g[2]} 頂點`,tags},ok,`${pg.name}有 ${n} 條邊、${n} 個角、${n} 個頂點。這種圖形的邊、角、頂點一樣多。`);});
+    }},
+    {key:'name', title:'這是什麼', tip:'看箭頭指的地方，是邊、角還是頂點？', items:()=>shuffle(['邊','角','頂點','邊','角']).map(k=>({k,pg:pick(POLYS.slice(0,6))})), render:it=>{
+      const pg=it.pg, S=44,P=30,X=x=>P+x*S,Y=y=>P+y*S, pts=pg.pts, n=pts.length, i=ri(0,n-1);
+      const [x0,y0]=pts[i],[x1,y1]=pts[(i+1)%n],[xp,yp]=pts[(i-1+n)%n];
+      let mark='';
+      if(it.k==='邊') mark=`<line x1="${X(x0)}" y1="${Y(y0)}" x2="${X(x1)}" y2="${Y(y1)}" stroke="var(--bad)" stroke-width="9" stroke-linecap="round"/>`;
+      else if(it.k==='頂點') mark=`<circle cx="${X(x0)}" cy="${Y(y0)}" r="10" fill="var(--bad)"/>`;
+      else { const ang=(x,y)=>Math.atan2(y-y0,x-x0), a1=ang(x1,y1), a2=ang(xp,yp), r=34;
+        const p1=[X(x0)+r*Math.cos(a1),Y(y0)+r*Math.sin(a1)], p2=[X(x0)+r*Math.cos(a2),Y(y0)+r*Math.sin(a2)];
+        let d=a2-a1; while(d<0)d+=2*Math.PI; const sweep=d<=Math.PI?1:0;
+        mark=`<path d="M${p1[0]} ${p1[1]} A${r} ${r} 0 0 ${sweep} ${p2[0]} ${p2[1]}" fill="none" stroke="var(--bad)" stroke-width="6"/>`; }
+      playShell(`<p class="prompt">紅色標出來的是什麼？</p>${polySVG(pg,{marks:mark})}<div id="cb">${choicesHTML(['邊','角','頂點'],'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),it.k,b);const ok=v===it.k;
+        finishItem({q:`${pg.name}標出${it.k}`,answer:it.k,given:v,tags:ok?[]:[`把${it.k}當成${v}`]},ok,{邊:'直直的線是「邊」。',角:'兩條邊相交、張開的地方是「角」。',頂點:'兩條邊接在一起、尖尖的那一點是「頂點」。'}[it.k]);});
+    }},
+  ]
+};
+
+/* ================= SC-2-1-3 內部、外部、周界 ================= */
+const AREA_SHAPES=[
+  {name:'長方形',kind:'rect'},{name:'圓形',kind:'circle'},{name:'三角形',kind:'tri'},
+];
+function regionSVG(kind,dots,gap=false){
+  // canvas 300x220; rect 60..240 x 40..180 ; circle c(150,110) r 80 ; tri (150,30),(250,190),(50,190)
+  let shape='';
+  if(kind==='rect') shape=gap?`<path d="M120 40 H60 V180 H240 V40 H160" fill="none" stroke="var(--ink)" stroke-width="5"/>`:`<rect x="60" y="40" width="180" height="140" fill="var(--fig)" stroke="var(--ink)" stroke-width="5"/>`;
+  if(kind==='circle') shape=gap?`<path d="M ${150+80*Math.cos(-1.2)} ${110+80*Math.sin(-1.2)} A80 80 0 1 1 ${150+80*Math.cos(-1.9)} ${110+80*Math.sin(-1.9)}" fill="none" stroke="var(--ink)" stroke-width="5"/>`:`<circle cx="150" cy="110" r="80" fill="var(--fig)" stroke="var(--ink)" stroke-width="5"/>`;
+  if(kind==='tri') shape=gap?`<path d="M135 52 L50 190 H250 L150 30 L142 42" fill="none" stroke="var(--ink)" stroke-width="5"/>`.replace('L142 42',''):`<polygon points="150,30 250,190 50,190" fill="var(--fig)" stroke="var(--ink)" stroke-width="5"/>`;
+  if(kind==='tri'&&gap) shape=`<path d="M128 65 L50 190 H250 L150 30" fill="none" stroke="var(--ink)" stroke-width="5"/>`;
+  const ds=(dots||[]).map(d=>`<circle cx="${d.x}" cy="${d.y}" r="${d.big?11:8}" fill="${d.color||'var(--bad)'}" stroke="var(--ink)" stroke-width="2"/>`).join('');
+  return `<div class="fig-wrap"><svg viewBox="0 0 300 220" role="img" aria-label="圖形">${shape}${ds}</svg></div>`;
+}
+function pointFor(kind,where){
+  if(kind==='rect'){ if(where==='in') return {x:ri(90,210),y:ri(70,150)}; if(where==='out') return pick([{x:ri(15,40),y:ri(30,200)},{x:ri(260,290),y:ri(30,200)},{x:ri(70,230),y:ri(198,212)}]);
+    return pick([{x:ri(80,220),y:40},{x:ri(80,220),y:180},{x:60,y:ri(60,160)},{x:240,y:ri(60,160)}]); }
+  if(kind==='circle'){ const a=Math.random()*2*Math.PI; const r=where==='in'?ri(10,55):where==='out'?ri(100,108):80; return {x:150+r*Math.cos(a),y:110+r*Math.sin(a)*(where==='out'?0.95:1)}; }
+  // triangle
+  if(where==='in') return {x:ri(125,175),y:ri(120,170)}; if(where==='out') return pick([{x:ri(20,70),y:ri(30,90)},{x:ri(230,285),y:ri(30,90)}]);
+  return pick([{x:ri(80,220),y:190},{x:200,y:110},{x:100,y:110}]);
+}
+const G_1_3s = {
+  intro:'今天要認識圖形的「內部、外部和周界」。',
+  note:'「有沒有周界」看她知不知道有缺口的圖形沒有周界，也分不出內部和外部。',
+  stages:[
+    {key:'where', title:'在哪裡', tip:'紅點在圖形的內部、外部，還是周界上？', items:()=>shuffle(['in','out','on','in','on','out']).map(w=>({w,kind:pick(['rect','circle','tri'])})), render:it=>{
+      const p=pointFor(it.kind,it.w), name={rect:'長方形',circle:'圓形',tri:'三角形'}[it.kind], want={in:'內部',out:'外部',on:'周界'}[it.w];
+      playShell(`<p class="prompt">紅點在${name}的哪裡？</p>${regionSVG(it.kind,[{...p,big:true}])}<div id="cb">${choicesHTML(['內部','外部',{v:'周界',t:'周界上'}],'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),want,b);const ok=v===want;
+        finishItem({q:`${name}，點在${want}`,answer:want,given:v,tags:ok?[]:[`把${want}當成${v}`]},ok,{內部:'點在圖形裡面，是「內部」。',外部:'點在圖形外面，是「外部」。',周界:'點剛好在線上，是在「周界」上。'}[want]);});
+    }},
+    {key:'closed', title:'有沒有周界', tip:'圖形有沒有缺口？有缺口就沒有周界。', items:()=>shuffle([{k:'rect',gap:true},{k:'circle',gap:false},{k:'tri',gap:true},{k:'rect',gap:false},{k:'circle',gap:true}]), render:it=>{
+      const want=it.gap?'no':'yes';
+      playShell(`<p class="prompt">這個圖形有周界嗎？</p>${regionSVG(it.k,[],it.gap)}<div id="cb">${choicesHTML([{v:'yes',t:'有周界'},{v:'no',t:'沒有周界（有缺口）'}],'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),want,b);const ok=v===want;
+        finishItem({q:`${{rect:'長方形',circle:'圓形',tri:'三角形'}[it.k]}${it.gap?'有缺口':'封閉'}`,answer:want==='yes'?'有周界':'沒有周界',given:v==='yes'?'有周界':'沒有周界',tags:ok?[]:[it.gap?'沒注意到缺口':'把封閉的圖形當成有缺口']},ok,it.gap?'這個圖形有缺口，沒有圍起來，所以沒有周界，也分不出內部和外部。':'這個圖形圍起來了，沒有缺口，所以有周界。');});
+    }},
+    {key:'count', title:'數一數', tip:'數出內部、外部、周界上各有幾個點。', items:()=>[0,1,2,3].map(()=>({a:ri(1,5),b:ri(1,5),c:ri(1,4),kind:pick(['rect','circle'])})), render:it=>{
+      const dots=[]; const far=(p)=>dots.every(d=>Math.hypot(d.x-p.x,d.y-p.y)>24);
+      const add=(w,n)=>{let k=0,t=0;while(k<n&&t<400){t++;const p=pointFor(it.kind,w);if(far(p)){dots.push({...p,color:'var(--line-s)'});k++;}}return k;};
+      const real={in:add('in',it.a),out:add('out',it.b),on:add('on',it.c)};
+      playShell(`<p class="prompt">數一數藍點：</p>${regionSVG(it.kind,dots)}
+        <div class="np"><div class="np-slots">${slotHTML(0,{pre:'內部',post:'個'})}${slotHTML(1,{pre:'外部',post:'個'})}${slotHTML(2,{pre:'周界上',post:'個'})}</div>${padHTML()}</div>`);
+      wirePad($('.play'),{max:[1,1,1]},v=>{const g=v.map(Number),ok=g[0]===real.in&&g[1]===real.out&&g[2]===real.on,tags=[];
+        if(!ok){ if(g[2]!==real.on&&(g[0]===real.in+real.on||g[1]===real.out+real.on)) tags.push('周界上的點算到內部或外部'); else tags.push('內部、外部數錯'); }
+        finishItem({q:`內${real.in} 外${real.out} 周界${real.on}`,answer:`${real.in}、${real.out}、${real.on}`,given:g.join('、'),tags},ok,`內部有 ${real.in} 個，外部有 ${real.out} 個，剛好在線上（周界上）的有 ${real.on} 個。`);});
+    }},
+  ]
+};
+
+/* ================= SC-2-3-1 用直尺量長度 ================= */
+const CM=40;
+function rulerG(x0,y,len=13){ // ruler group drawn with its 0 at x0
+  let t=`<rect x="${x0-14}" y="${y}" width="${len*CM+28}" height="56" rx="6" fill="var(--ruler)" stroke="var(--ink)" stroke-width="2"/>`;
+  for(let i=0;i<=len*10;i++){ const x=x0+i*CM/10, big=i%10===0, mid=i%5===0; t+=`<line x1="${x}" y1="${y}" x2="${x}" y2="${y+(big?22:mid?15:9)}" stroke="var(--ink)" stroke-width="${big?2:1}"/>`; if(big) t+=`<text x="${x}" y="${y+44}" text-anchor="middle" font-size="17">${i/10}</text>`; }
+  return t;
+}
+function measureSVG(a,b,{ruler=true,id=''}={}){ // segment from a cm to b cm, ruler 0 at x=30
+  const X=c=>30+c*CM;
+  return `<div class="ruler-wrap"><svg ${id?`id="${id}"`:''} viewBox="0 0 590 140" role="img" aria-label="線段和直尺">
+    <line x1="${X(a)}" y1="40" x2="${X(b)}" y2="40" stroke="var(--line-s)" stroke-width="8" stroke-linecap="butt"/>
+    <line x1="${X(a)}" y1="28" x2="${X(a)}" y2="52" stroke="var(--line-s)" stroke-width="3"/><line x1="${X(b)}" y1="28" x2="${X(b)}" y2="52" stroke="var(--line-s)" stroke-width="3"/>
+    <line x1="${X(a)}" y1="52" x2="${X(a)}" y2="62" stroke="var(--ink-2)" stroke-dasharray="3 3"/><line x1="${X(b)}" y1="52" x2="${X(b)}" y2="62" stroke="var(--ink-2)" stroke-dasharray="3 3"/>
+    ${ruler?`<g id="rul">${rulerG(30,62)}</g>`:''}
+  </svg></div>`;
+}
+const G_3_1s = {
+  intro:'今天要練習用直尺量長度：<br>量的時候，要看從哪裡開始。',
+  note:'「沒有從 0 開始」最能看出她懂不懂量長度：常見錯誤是直接讀終點的刻度，或數刻度線而不是數 1 公分的格子。',
+  stages:[
+    {key:'zero', title:'從 0 開始量', tip:'線段從 0 開始，看另一端對齊哪個數字。', items:()=>shuffle([3,4,5,6,7,8,9,10,11]).slice(0,4).map(b=>({a:0,b})), render:it=>{
+      playShell(`<p class="prompt">藍色線段長幾公分？</p>${measureSVG(it.a,it.b)}${oneAnswerHTML('','公分')}`);
+      askNum($('.play'),2,g=>{const ok=g===it.b;finishItem({q:`0 到 ${it.b}`,answer:it.b,given:g,tags:ok?[]:['從 0 開始也讀錯']},ok,`線段一端對齊 0，另一端對齊 ${it.b}，0 到 ${it.b} 有 ${it.b} 個 1 公分，長 ${it.b} 公分。`);});
+    }},
+    {key:'shift', title:'沒有從 0 開始', tip:'線段沒有從 0 開始，要數中間有幾個 1 公分。', items:()=>[0,1,2,3,4].map(()=>{const a=ri(1,5),b=a+ri(3,7);return {a,b:Math.min(b,12)};}), render:it=>{
+      playShell(`<p class="prompt">藍色線段長幾公分？</p>${measureSVG(it.a,it.b)}${oneAnswerHTML('','公分')}`);
+      askNum($('.play'),2,g=>{const L=it.b-it.a,ok=g===L,tags=[];if(!ok){if(g===it.b)tags.push('直接讀終點的刻度');else if(g===L+1)tags.push('數刻度線，不是數 1 公分的格子');else tags.push('量長度錯');}
+        finishItem({q:`${it.a} 到 ${it.b}`,answer:L,given:g,tags},ok,`線段從 ${it.a} 到 ${it.b}，中間有 ${L} 個 1 公分：${it.b}－${it.a}＝${L}，長 ${L} 公分。`);});
+    }},
+    {key:'slide', title:'自己拿尺量', tip:'左右拖動直尺，對好之後讀出長度。', items:()=>[0,1,2,3].map(()=>{const L=ri(3,9),a=ri(1,12-L)+pick([0,0.5]);return {a,b:a+L,L};}), render:it=>{
+      playShell(`<p class="prompt">把直尺拖到線段下面量一量，藍色線段長幾公分？</p>
+        <div class="ruler-wrap"><svg id="ms" viewBox="0 0 590 140" role="img" aria-label="線段和可以拖動的直尺">
+          <line x1="${30+it.a*CM}" y1="40" x2="${30+it.b*CM}" y2="40" stroke="var(--line-s)" stroke-width="8"/>
+          <line x1="${30+it.a*CM}" y1="28" x2="${30+it.a*CM}" y2="52" stroke="var(--line-s)" stroke-width="3"/><line x1="${30+it.b*CM}" y1="28" x2="${30+it.b*CM}" y2="52" stroke="var(--line-s)" stroke-width="3"/>
+          <g id="rul" class="drag-ruler" transform="translate(${ri(-60,60)} 0)">${rulerG(30,62)}</g></svg></div>
+        <p class="muted">直尺可以左右拖動</p>${oneAnswerHTML('','公分')}`);
+      const svg=$('#ms'), g=$('#rul'); let dx=+g.getAttribute('transform').match(/-?\d+/)[0], drag=false, sx=0, s0=0;
+      const svgX=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;return p.matrixTransform(svg.getScreenCTM().inverse()).x;};
+      svg.addEventListener('pointerdown',e=>{drag=true;sx=svgX(e);s0=dx;svg.setPointerCapture(e.pointerId);});
+      svg.addEventListener('pointermove',e=>{if(!drag)return;dx=Math.max(-200,Math.min(200,s0+svgX(e)-sx));g.setAttribute('transform',`translate(${dx} 0)`);});
+      svg.addEventListener('pointerup',()=>drag=false); svg.addEventListener('pointercancel',()=>drag=false);
+      askNum($('.play'),2,v=>{svg.style.pointerEvents='none';const ok=v===it.L,tags=[];if(!ok){const end=Math.round((30+it.b*CM-30-dx)/CM);tags.push(v===end?'讀了尺上終點的數字，沒有對齊 0':'量長度錯');}
+        finishItem({q:`線段 ${it.L} 公分（自己拖尺）`,answer:it.L,given:v,note:`直尺最後位移 ${Math.round(dx)}`,tags},ok,`把直尺的 0 對齊線段的一端，另一端對到 ${it.L}，線段長 ${it.L} 公分。沒有對齊 0 的話，要算兩端刻度相差多少。`);});
+    }},
+  ]
+};
+
+/* ================= NC-2-11-1 用不同單位量長度 ================= */
+const UNITS=[['迴紋針',1],['橡皮擦',2],['養樂多罐',3],['膠水罐',4]];
+function unitRow(name,len,n,scale){ // n tiles of len units
+  return `<div class="urow"><span class="say">${name}</span><span class="tiles">${Array.from({length:n},()=>`<span class="tile" style="width:${len*scale}px"></span>`).join('')}</span></div>`;
+}
+const G_11_1 = {
+  intro:'今天要想一想：用不一樣長的東西量，<br>量出來的個數為什麼不一樣？',
+  note:'最常見的迷思是「量出來個數比較多的東西比較長」；這一關每一站都會檢查這一點。',
+  stages:[
+    {key:'which', title:'哪一個比較長', tip:'量同一個東西，用的個數少的，一個比較長。', items:()=>[0,1,2,3,4].map(i=>{
+      const [si,li]=pick([[0,1],[0,2],[0,3],[1,3]]), s=UNITS[si], l=UNITS[li], nL=ri(2,4), nS=nL*l[1]/s[1];
+      return {short:s[0],long:l[0],nS,nL,ask:pick(['長','短']),pic:i<3};
+    }), render:it=>{
+      const want=it.ask==='長'?it.long:it.short, rows=shuffle([[it.short,it.nS,1],[it.long,it.nL,it.nS/it.nL]]);
+      const scale=300/it.nS;
+      playShell(`<p class="prompt big-text">一枝鉛筆和 ${it.nS} 個${it.short}接起來一樣長，也和 ${it.nL} 個${it.long}接起來一樣長。<br>${it.short}和${it.long}，哪一個比較${it.ask}？</p>
+        ${it.pic?`<div class="ubox"><div class="urow"><span class="say">鉛筆</span><span class="pencil" style="width:300px"></span></div>${rows.map(([n,c,len])=>unitRow(n,len,c,scale)).join('')}</div>`:''}
+        <div id="cb">${choicesHTML([it.short,it.long],'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),want,b);const ok=v===want;
+        finishItem({q:`${it.nS} 個${it.short}＝${it.nL} 個${it.long}，比${it.ask}`,answer:want,given:v,tags:ok?[]:['個數多就以為比較長']},ok,`量一樣的長度，${it.long}只要 ${it.nL} 個，${it.short}要 ${it.nS} 個。用的個數少，表示一個比較長，所以${it.long}比較長、${it.short}比較短。`);});
+    }},
+    {key:'count', title:'量量看', tip:'數一數排了幾個，再想想為什麼個數不一樣。', items:()=>[0,1,2,3].map(()=>{const k=ri(2,4),m=ri(2,3);return {a:k,b:k*m,m,names:pick([['長條','小方塊'],['膠水罐','迴紋針'],['黑緞帶','白緞帶']])};}), render:it=>{
+      const scale=320/it.b;
+      playShell(`<p class="prompt">用${it.names[0]}和${it.names[1]}量同一條木棍：</p>
+        <div class="ubox"><div class="urow"><span class="say">木棍</span><span class="pencil wood" style="width:320px"></span></div>${unitRow(it.names[0],it.m,it.a,scale)}${unitRow(it.names[1],1,it.b,scale)}</div>
+        <div class="steps"><div class="step" id="s1"><span class="say">各用了幾個？</span><div class="np"><div class="np-slots">${slotHTML(0,{pre:it.names[0],post:'個'})}${slotHTML(1,{pre:it.names[1],post:'個'})}</div>${padHTML()}</div></div>
+        <div class="step dim" id="s2"><span class="say">為什麼${it.names[1]}用的個數比較多？</span>${choicesHTML([{v:'s',t:`因為一個${it.names[1]}比較短`},{v:'l',t:`因為一個${it.names[1]}比較長`}],'txt story')}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      wirePad($('#s1'),{max:[2,2]},v=>{const ga=+v[0],gb=+v[1];enableStep($('#s2'));
+        wireChoices($('#s2'),(r,b)=>{markChoices($('#s2'),'s',b);const cOk=ga===it.a&&gb===it.b,rOk=r==='s',ok=cOk&&rOk,tags=[];if(!cOk)tags.push('數個數數錯');if(!rOk)tags.push('個數多就以為比較長');
+          finishItem({q:`木棍＝${it.a} 個${it.names[0]}＝${it.b} 個${it.names[1]}`,answer:`${it.a}、${it.b}，比較短`,given:`${ga}、${gb}，${r==='s'?'比較短':'比較長'}`,tags},ok,`${it.names[0]}用了 ${it.a} 個，${it.names[1]}用了 ${it.b} 個。一個${it.names[1]}比較短，所以要用比較多個才能接成一樣長。`);});});
+    }},
+    {key:'predict', title:'想一想', tip:'不用量，想一想會怎樣。', items:()=>shuffle([
+      {text:'用迴紋針量一本書，再用比迴紋針長的膠水罐量同一本書。膠水罐用的個數會比較多還是比較少？',opts:['比較多','比較少','一樣多'],ans:'比較少',exp:'膠水罐比較長，一個就佔比較多長度，所以用的個數比較少。'},
+      {text:'走廊和 5 條黑緞帶接起來一樣長，也和 7 條白緞帶接起來一樣長。哪一種緞帶比較長？',opts:['黑緞帶','白緞帶','一樣長'],ans:'黑緞帶',exp:'黑緞帶只要 5 條就夠，用得比較少，所以一條黑緞帶比較長。'},
+      {text:'筆筒和 3 本字典疊起來一樣高，也和 15 本課本疊起來一樣高。字典和課本，哪一種比較厚？',opts:['字典','課本','一樣厚'],ans:'字典',exp:'字典只要 3 本就一樣高，所以一本字典比較厚。'},
+      {text:'5 個養樂多罐接起來，和 5 個橡皮擦接起來比。一個養樂多罐比一個橡皮擦長，哪一排比較長？',opts:['養樂多罐','橡皮擦','一樣長'],ans:'養樂多罐',exp:'個數一樣，每一個養樂多罐都比橡皮擦長，所以養樂多罐那排比較長。'},
+      {text:'7 枚迴紋針和 2 個夾子接起來一樣長。迴紋針和夾子，哪一樣比較短？',opts:['迴紋針','夾子','一樣長'],ans:'迴紋針',exp:'迴紋針要用 7 枚才一樣長，用得比較多，所以一枚迴紋針比較短。'},
+    ]).slice(0,4), render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p><div id="cb">${choicesHTML(it.opts,'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),it.ans,b);const ok=v===it.ans;
+        finishItem({q:it.text,answer:it.ans,given:v,tags:ok?[]:['個數多就以為比較長']},ok,it.exp);});
+    }},
+  ]
+};
+
+/* ================= RC-2-1-1 用 ＞ ＝ ＜ ================= */
+function cmpSide(){ const t=pick(['n','n','add','sub']); if(t==='n'){const v=ri(2,99);return {s:String(v),v};} if(t==='add'){const a=ri(1,9),b=ri(1,9);return {s:`${a}＋${b}`,v:a+b};} const a=ri(5,15),b=ri(1,a-1);return {s:`${a}－${b}`,v:a-b}; }
+function cmpItem(kind){
+  for(;;){
+    if(kind==='nums'){ const a=ri(10,99),b=ri(10,99); if(a===b) continue; if(Math.floor(a/10)!==Math.floor(b/10)&&Math.random()<.5) continue; return {L:{s:String(a),v:a},R:{s:String(b),v:b}}; }
+    if(kind==='eq'){ const a=ri(2,9),b=ri(2,9); return Math.random()<.5?{L:{s:`${a}＋${b}`,v:a+b},R:{s:String(a+b),v:a+b}}:{L:{s:String(a+b),v:a+b},R:{s:`${b}＋${a}`,v:a+b}}; }
+    if(kind==='expr'){ const L=cmpSide(),R=cmpSide(); if(L.v===R.v||(!L.s.match(/[＋－]/)&&!R.s.match(/[＋－]/))) continue; if(L.v>30||R.v>30){ if(Math.abs(L.v-R.v)>20) continue; } return {L,R}; }
+  }
+}
+const sym=(a,b)=>a>b?'＞':a<b?'＜':'＝';
+const G_1_1r = {
+  intro:'今天要用 ＞、＝、＜ 記下誰比較大。<br>開口朝向比較大的數。',
+  note:'選到相反的符號（＞、＜ 弄反）代表她知道誰大，但還不會用符號記錄；含算式的題目要先算出來再比。',
+  stages:[
+    {key:'put', title:'放符號', tip:'□ 裡要放 ＞、＝ 還是 ＜？', items:()=>shuffle([cmpItem('nums'),cmpItem('nums'),cmpItem('eq'),cmpItem('expr'),cmpItem('expr'),cmpItem('expr')]), render:it=>{
+      const want=sym(it.L.v,it.R.v);
+      playShell(`<p class="prompt">□ 裡要放什麼？</p><div class="big-q">${it.L.s} □ ${it.R.s}</div><div id="cb">${choicesHTML(['＞','＝','＜'])}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),want,b);const ok=v===want,tags=[];
+        if(!ok){ if(want!=='＝'&&v!=='＝') tags.push('＞、＜ 方向弄反'); else if(want==='＝') tags.push('一樣大時不會用＝'); else tags.push('比大小錯'); }
+        const ex=(it.L.s!==String(it.L.v)?`${it.L.s}＝${it.L.v}，`:'')+(it.R.s!==String(it.R.v)?`${it.R.s}＝${it.R.v}，`:'');
+        finishItem({q:`${it.L.s} □ ${it.R.s}`,answer:want,given:v,tags},ok,`${ex}${it.L.v} ${want==='＝'?'和':want==='＞'?'比':'比'} ${it.R.v} ${want==='＝'?'一樣大':want==='＞'?'大':'小'}，所以是 ${it.L.s} ${want} ${it.R.s}。開口朝向比較大的那邊。`);});
+    }},
+    {key:'read', title:'這是什麼意思', tip:'看算式，說說看它記了什麼。', items:()=>[0,1,2,3].map(()=>{const a=ri(20,99);let b=ri(10,99);while(b===a)b=ri(10,99);return {a,b,s:sym(a,b)};}), render:it=>{
+      const big=Math.max(it.a,it.b), small=Math.min(it.a,it.b);
+      const right=it.s==='＞'?`${it.a} 比 ${it.b} 大`:`${it.a} 比 ${it.b} 小`, wrong1=it.s==='＞'?`${it.a} 比 ${it.b} 小`:`${it.a} 比 ${it.b} 大`, wrong2=`${it.b} 比 ${it.a} ${it.s==='＞'?'大':'小'}`;
+      playShell(`<p class="prompt">這個算式記了什麼？</p><div class="big-q">${it.a} ${it.s} ${it.b}</div><div id="cb">${choicesHTML(shuffle([right,wrong1,wrong2]),'txt')}</div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),right,b);const ok=v===right;
+        finishItem({q:`${it.a} ${it.s} ${it.b}`,answer:right,given:v,tags:ok?[]:['看不懂 ＞、＜ 記的意思']},ok,`「${it.s}」開口朝向 ${big}，表示 ${big} 比較大，所以 ${it.a} ${it.s} ${it.b} 就是「${right}」。`);});
+    }},
+    {key:'true', title:'哪一個是對的', tip:'先算一算，再找出寫對的那一個。', items:()=>[0,1,2,3].map(()=>{
+      const truth=[], fake=[];
+      while(truth.length<1){const it=cmpItem('expr');truth.push(`${it.L.s} ${sym(it.L.v,it.R.v)} ${it.R.s}`);}
+      while(fake.length<2){const it=cmpItem(pick(['expr','nums']));const s=sym(it.L.v,it.R.v);const w=s==='＞'?'＜':s==='＜'?'＞':pick(['＞','＜']);fake.push(`${it.L.s} ${w} ${it.R.s}`);}
+      return {truth:truth[0],opts:shuffle([truth[0],...fake])};
+    }), render:it=>{
+      playShell(`<p class="prompt">下面哪一個是<b>對的</b>？</p><div id="cb"><div class="choices col">${it.opts.map(o=>`<button class="choice" data-v="${esc(o)}">${o}</button>`).join('')}</div></div>`);
+      wireChoices($('#cb'),(v,b)=>{markChoices($('#cb'),it.truth,b);const ok=v===it.truth;
+        finishItem({q:it.opts.join('／'),answer:it.truth,given:v,tags:ok?[]:['沒有先算出算式的值再比']},ok,`先把有＋、－的算出來再比，只有「${it.truth}」是對的。`);});
+    }},
+  ]
+};
+
+/* ================= NC-2-6-2 用乘法解決生活問題 ================= */
+const MUL_CTX=[
+  (k,n)=>({text:`一盒糖果有 ${k} 顆，${n} 盒有多少顆？`,u:'顆'}),
+  (k,n)=>({text:`一包色紙有 ${k} 張，${n} 包色紙有多少張？`,u:'張'}),
+  (k,n)=>({text:`一盒布丁有 ${k} 個，${n} 盒布丁有多少個？`,u:'個'}),
+  (k,n)=>({text:`一組有 ${k} 個人，${n} 組有多少個人？`,u:'人'}),
+  (k,n)=>({text:`每條緞帶長 ${k} 公分，${n} 條接起來有多少公分？`,u:'公分'}),
+];
+const G_6_2 = {
+  intro:'今天要用乘法解決生活中的問題：<br>一份有幾個、有幾份？',
+  note:'選到「加」的算式，代表她還沒把「幾個一數、數幾次」連到乘法。',
+  stages:[
+    {key:'expr', title:'寫算式', tip:'先選對的算式，再算出答案。', items:()=>[0,1,2,3,4].map(i=>{const k=ri(3,9),n=ri(3,9);return {k,n,...MUL_CTX[i](k,n)};}), render:it=>{
+      const right=`${it.k}×${it.n}`;
+      playShell(`<p class="prompt big-text">${it.text}</p>
+        <div class="steps"><div class="step" id="s1"><span class="say">用哪個算式？</span>${choicesHTML(shuffle([right,`${it.k}＋${it.n}`,`${it.k}×${it.k===it.n?it.n+1:it.k}`]))}</div>
+        <div class="step dim" id="s2"><span class="say">答案</span>${oneAnswerHTML('',it.u)}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      let p=null;
+      wireChoices($('#s1'),(v,b)=>{p=v;markChoices($('#s1'),right,b);enableStep($('#s2'));
+        askNum($('#s2'),2,g=>{const ok=p===right&&g===it.k*it.n,tags=[];if(p!==right)tags.push(p.includes('＋')?'把乘法問題用加法':'乘數寫錯');if(g!==it.k*it.n)tags.push('乘法算錯');
+          finishItem({q:it.text,answer:`${right}=${it.k*it.n}`,given:`${p}=${g}`,tags},ok,`一份 ${it.k}${it.u}，有 ${it.n} 份，就是 ${it.k} 加 ${it.n} 次：${right}＝${it.k*it.n}。`);});});
+    }},
+    {key:'array', title:'看圖寫算式', tip:'一排有幾個？有幾排？', items:()=>[0,1,2,3].map(()=>({c:ri(2,9),r:ri(2,6)})), render:it=>{
+      const right=`${it.c}×${it.r}`;
+      playShell(`<p class="prompt">一共有幾隻蝸牛？用乘法算算看。</p>
+        <div class="arr">${Array.from({length:it.r},()=>`<div class="arr-row">${'<span class="snail"></span>'.repeat(it.c)}</div>`).join('')}</div>
+        <div class="steps"><div class="step" id="s1"><span class="say">一排 ? 隻，有 ? 排</span>${choicesHTML(shuffle([right,`${it.c}＋${it.r}`,`${it.c}×${it.c===it.r+1?it.r+2:it.r+1}`]))}</div>
+        <div class="step dim" id="s2"><span class="say">一共</span>${oneAnswerHTML('','隻')}</div></div>`);
+      $('#s2').querySelectorAll('button').forEach(b=>b.disabled=true);
+      let p=null;
+      wireChoices($('#s1'),(v,b)=>{p=v;markChoices($('#s1'),right,b);enableStep($('#s2'));
+        askNum($('#s2'),2,g=>{const ok=p===right&&g===it.c*it.r,tags=[];if(p!==right)tags.push(p.includes('＋')?'把排數和每排個數相加':'排數數錯');if(g!==it.c*it.r)tags.push('乘法算錯');
+          finishItem({q:`${it.r} 排，每排 ${it.c}`,answer:`${right}=${it.c*it.r}`,given:`${p}=${g}`,tags},ok,`一排 ${it.c} 隻，有 ${it.r} 排：${right}＝${it.c*it.r}。`);});});
+    }},
+    {key:'story', title:'生活問題', tip:'讀題目，直接算出答案。', items:()=>[0,1,2,3].map(()=>{const k=ri(4,9),n=ri(4,9);return {k,n,...pick(MUL_CTX)(k,n)};}), render:it=>{
+      playShell(`<p class="prompt big-text">${it.text}</p>${oneAnswerHTML('',it.u)}`);
+      askNum($('.play'),2,g=>{const ok=g===it.k*it.n,tags=[];if(!ok)tags.push(g===it.k+it.n?'用加法算乘法問題':'乘法算錯');
+        finishItem({q:it.text,answer:it.k*it.n,given:g,tags},ok,`${it.k}×${it.n}＝${it.k*it.n}，答案是 ${it.k*it.n} ${it.u}。`);});
+    }},
+  ]
+};
+
+const GAMES = {
+  'NC-2-4-1': {intro:'今天要練習「估算」：不用算出真正的答案，<br>只要知道「大約是多少」。', note:'閃電估算如果常常超過 8 秒，可能是在直式精算，不是用估的。', stages:STAGES},
+  'NC-2-1-1': G_1_1,
+  'NC-2-1-2': G_1_2,
+  'NC-2-2-2': G_2_2,
+  'NC-2-3-1': G_3_1,
+  'NC-2-5-1': G_5_1,
+  'NC-2-7-1': G_7_1,
+  'NC-2-8-3': G_8_3,
+  'NC-2-13-1': G_13_1,
+  'SC-2-4-2': G_4_2s,
+  'NC-2-12-1': G_12_1,
+  'NC-2-12-2': G_12_2,
+  'RC-2-2-1': G_2_2r,
+  'NC-2-8-1': G_8_1,
+  'SC-2-1-1': G_1_1s,
+  'SC-2-1-3': G_1_3s,
+  'SC-2-3-1': G_3_1s,
+  'NC-2-11-1': G_11_1,
+  'RC-2-1-1': G_1_1r,
+  'NC-2-6-2': G_6_2,
+};
+Object.keys(GAMES).forEach(id=>{ LEVELS[id].game=true; });
+
+render();
+})();
+</script>
